@@ -39,7 +39,7 @@ export const DEFAULT_CONFIG: ScanConfig = {
   // AI defaults
   enableAI: false,
   perplexityApiKey: undefined,
-  perplexityModel: 'llama-3.1-sonar-small-128k-online',
+  perplexityModel: 'sonar', // Updated model name (Feb 2026)
   aiConfidenceThreshold: 0.5
 };
 

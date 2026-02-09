@@ -45,7 +45,7 @@ Bearbeite `~/.mcp-scan.json`:
 {
   "enableAI": true,
   "perplexityApiKey": "pplx-your-api-key-here",
-  "perplexityModel": "llama-3.1-sonar-small-128k-online",
+  "perplexityModel": "sonar",
   "aiConfidenceThreshold": 0.5
 }
 ```
@@ -87,7 +87,7 @@ echo '{"enableAI": false}' > ~/.mcp-scan.json
 ## Technische Details
 
 ### Verwendetes Modell
-- **Standard**: `llama-3.1-sonar-small-128k-online`
+- **Standard**: `sonar` (Lightweight search model)
 - **Kontext**: 128k Tokens
 - **Online-Zugriff**: Nutzt aktuelle Web-Informationen für bessere Firma-Erkennung
 
@@ -128,10 +128,10 @@ Das Tool sendet strukturierte Prompts im JSON-Format:
 
 ### `perplexityModel`
 - **Typ**: String
-- **Default**: `"llama-3.1-sonar-small-128k-online"`
+- **Default**: `"sonar"`
 - **Alternativen**: 
-  - `llama-3.1-sonar-large-128k-online` (höhere Qualität, teurer)
-  - `llama-3.1-8b-instruct` (offline, günstiger)
+  - `sonar-pro` (Advanced search, höhere Qualität)
+  - `sonar-reasoning-pro` (Complex multi-step reasoning)
 
 ### `aiConfidenceThreshold`
 - **Typ**: Number (0.0 - 1.0)
