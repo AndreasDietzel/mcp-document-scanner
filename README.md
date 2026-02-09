@@ -8,12 +8,48 @@ Standalone Command-Line Tool mit macOS Kontextmenü-Integration (Quick Action) f
 [![macOS](https://img.shields.io/badge/macOS-Monterey%2B-blue)](https://www.apple.com/macos/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)](https://nodejs.org/)
 [![OCR](https://img.shields.io/badge/OCR-Tesseract-orange)](https://github.com/tesseract-ocr/tesseract)
+[![Version](https://img.shields.io/badge/Version-2.0.0-brightgreen)](package.json)
 
 ---
 
-## ✨ Features
+## ✨ Features v2.0
 
-### 🔍 Intelligente Dokumentenerkennung
+### 🔧 **NEU: Konfigurationsmanagement**
+- **~/.mcp-scan.json** - Persistente Einstellungen
+- **Interaktiver Setup-Wizard** (`mcp-scan --setup`)
+- **Standard-Modus** wählbar (Preview/Execute)
+- **OCR-Konfiguration** (Sprache, Enable/Disable)
+- **Eigene Firmennamen** hinzufügen
+- **CLI überschreibt Config** (flexible Nutzung)
+
+### 📁 **NEU: Kategorisierung nach Branchen**
+- **8 Kategorien:** Telekommunikation, Versicherung, Gesundheit, Finanzen, etc.
+- **40+ Firmen** automatisch erkannt
+- **Ordner-Vorschläge:** 01_Finanzen, 11_Telekommunikation, etc.
+- **Aktivierbar** via Config oder Setup
+
+### ⏮️ **NEU: Undo-Funktion**
+- **`mcp-scan --undo`** - Letzte Batch-Umbenennung rückgängig machen
+- **Automatisches Tracking** aller Operationen
+- **Batch-Erkennung** (Gruppierung nach Zeit)
+- **Statistiken** mit `--undo-stats`
+
+### 🎨 **NEU: Farbige Terminal-Ausgabe**
+- **Grün:** Erfolg
+- **Rot:** Fehler
+- **Gelb:** Warnungen
+- **Cyan:** Vorschläge
+- **Grau:** Debug-Details (nur --verbose)
+
+### 🔒 **NEU: Security & Validation**
+- **--verbose Flag** für Debug-Output
+- **Standard:** Minimal logging (keine sensiblen Daten)
+- **Filename Validation** (Länge, illegale Zeichen, etc.)
+- **Reservierte Namen** erkennen (CON, PRN, etc.)
+
+---
+
+## ✨ Features v1.0 (Basis-Features)
 
 - **📅 Zeitstempel-Erkennung**
   - Scanner-Zeitstempel beibehalten (`2024-01-24_14-30-45`)
@@ -98,6 +134,58 @@ mcp-scan --help
 ```
 
 ### macOS Quick Action einrichten
+
+**Detaillierte Anleitung:** Siehe [MACOS-KONTEXTMENU.md](./MACOS-KONTEXTMENU.md)
+
+**Quick-Setup:**
+1. Automator öffnen → "Schnellaktion" wählen
+2. "Shell-Script ausführen" hinzufügen
+3. Script einfügen (siehe Anleitung)
+4. Als "🔍 Dokument scannen" speichern
+5. Im Finder: Rechtsklick → Dienste → 🔍 Dokument scannen
+
+---
+
+## 🎯 Quick Start (v2.0)
+
+### Erste Schritte
+
+```bash
+# 1️⃣ Setup-Wizard ausführen (erstmalig)
+mcp-scan --setup
+
+# 2️⃣ Einzelne Datei analysieren (Vorschau)
+mcp-scan ~/Downloads/rechnung.pdf
+
+# 3️⃣ Einzelne Datei umbenennen
+mcp-scan ~/Downloads/rechnung.pdf --execute
+
+# 4️⃣ Batch-Verarbeitung mit Kategorisierung
+mcp-scan ~/Downloads/*.pdf --execute --verbose
+
+# 5️⃣ Letzte Aktion rückgängig machen
+mcp-scan --undo
+```
+
+### Neue v2.0 Befehle
+
+```bash
+# Setup-Wizard ausführen
+mcp-scan --setup
+
+# Undo letzte Batch-Umbenennung
+mcp-scan --undo
+
+# Undo-Statistiken anzeigen
+mcp-scan --undo-stats
+
+# Mit verbose Output (zeigt Kategorien)
+mcp-scan file.pdf --preview --verbose
+```
+
+---
+
+## 📖 Verwendung
 
 Siehe [MACOS-QUICK-ACTION.md](MACOS-QUICK-ACTION.md) für detaillierte Anleitung.
 

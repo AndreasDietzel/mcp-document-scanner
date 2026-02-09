@@ -11,9 +11,18 @@ import { createRequire } from "module";
 import mammoth from "mammoth";
 import AdmZip from "adm-zip";
 import { execSync } from "child_process";
+import chalk from "chalk";
+import { loadConfig, mergeWithCLI, ScanConfig, configExists } from './config.js';
+import { getCategoryForCompany } from './categories.js';
+import { recordRename, undoLastBatch, getUndoStats } from './undo.js';
+import { runSetupWizard } from './setup.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
+
+// Global verbose flag
+let VERBOSE = false;
+let CONFIG: ScanConfig;
 
 // Import shared utilities from main index
 function normalizeUnicode(str: string): string {
@@ -26,6 +35,46 @@ function sanitizeFilename(filename: string): string {
   safe = safe.replace(/[\\]/g, '-');
   safe = safe.trim().replace(/_+/g, '_').replace(/^_|_$/g, '');
   return safe;
+}
+
+// Opt-20: Enhanced filename validation
+function validateFilename(filename: string): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  if (!filename || filename.trim().length === 0) {
+    errors.push('Dateiname ist leer');
+    return { valid: false, errors };
+  }
+  
+  // Check length (macOS/Windows limit: 255 bytes)
+  if (filename.length > 255) {
+    errors.push(`Dateiname zu lang (${filename.length} > 255 Zeichen)`);
+  }
+  
+  // Check for illegal characters
+  const illegalChars = /[<>:"|?*\x00-\x1F]/;
+  if (illegalChars.test(filename)) {
+    errors.push('Enth\u00e4lt ung\u00fcltige Zeichen (<>:"|?*)');
+  }
+  
+  // Check for reserved names (Windows)
+  const reserved = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/i;
+  const basename = filename.replace(/\.[^.]+$/, '');
+  if (reserved.test(basename)) {
+    errors.push('Reservierter Systemname (CON, PRN, etc.)');
+  }
+  
+  // Check for trailing dots/spaces (Windows issue)
+  if (/[.\s]$/.test(filename.replace(/\.[^.]+$/, ''))) {
+    errors.push('Darf nicht mit Punkt oder Leerzeichen enden');
+  }
+  
+  // Check for leading dots (hidden files warning)
+  if (filename.startsWith('.') && filename !== '.' && filename !== '..') {
+    if (VERBOSE) console.log(chalk.yellow('\u26a0\ufe0f  Hinweis: Datei beginnt mit Punkt (versteckte Datei)'));
+  }
+  
+  return { valid: errors.length === 0, errors };
 }
 
 // OCR Detection für gescannte PDFs/Bilder
@@ -61,11 +110,11 @@ async function extractTextWithOCR(filePath: string): Promise<string> {
         
         return ocrText.trim();
       } catch (ocrError) {
-        console.log("⚠️  OCR nicht verfügbar oder fehlgeschlagen");
+        if (VERBOSE) console.log(chalk.yellow("⚠️  OCR nicht verfügbar oder fehlgeschlagen"));
       }
     }
   } catch (error) {
-    console.error("Fehler bei Textextraktion:", error);
+    if (VERBOSE) console.error(chalk.red("Fehler bei Textextraktion:"), error);
   }
   
   return "";
@@ -107,7 +156,7 @@ async function extractText(filePath: string): Promise<string> {
       return await extractTextWithOCR(filePath);
     }
   } catch (error) {
-    console.error(`Fehler beim Lesen von ${filePath}:`, error);
+    if (VERBOSE) console.error(chalk.red(`Fehler beim Lesen:`), error);
   }
   
   return "";
@@ -137,7 +186,7 @@ function generateSmartFilename(text: string, originalName: string, filePath: str
     }
   }
   
-  // 2. Firmen/Absender (erweiterte Liste mit Versicherungen)
+  // 2. Firmen/Absender (erweiterte Liste mit Versicherungen + Custom)
   const companies = [
     // Telekommunikation
     'Vodafone', 'Telekom', 'O2', 'Telefónica',
@@ -152,12 +201,25 @@ function generateSmartFilename(text: string, originalName: string, filePath: str
     'Sparkasse', 'Volksbank', 'Postbank', 'Commerzbank', 'Deutsche Bank',
     'PayPal', 'N26', 'ING', 'DKB',
     // Sonstiges
-    'Lufthansa', 'Deutsche Bahn', 'ADAC', 'eBay', 'Otto'
+    'Lufthansa', 'Deutsche Bahn', 'ADAC', 'eBay', 'Otto',
+    // Custom companies from config
+    ...(CONFIG?.customCompanies || [])
   ];
+  
+  let detectedCompany: string | null = null;
   for (const company of companies) {
     if (text.includes(company)) {
+      detectedCompany = company;
       suggestions.push(company.replace(/\s+/g, '_'));
       break;
+    }
+  }
+  
+  // Opt-04: Add category detection
+  if (detectedCompany && CONFIG?.enableCategories) {
+    const category = getCategoryForCompany(detectedCompany);
+    if (category && VERBOSE) {
+      console.log(chalk.magenta(`📁 Kategorie: ${category.name} (${category.folder})`));
     }
   }
   
@@ -245,7 +307,7 @@ function showNotification(title: string, message: string, sound = false) {
     const script = `display notification "${message.replace(/"/g, '\\"')}" with title "${title.replace(/"/g, '\\"')}" ${soundArg}`;
     execSync(`osascript -e '${script}'`);
   } catch (error) {
-    console.error("Benachrichtigung fehlgeschlagen:", error);
+    if (VERBOSE) console.error(chalk.red("Benachrichtigung fehlgeschlagen:"), error);
   }
 }
 
@@ -270,6 +332,7 @@ async function processFile(
   
   // Validierung
   if (!fs.existsSync(filePath)) {
+    console.error(chalk.red(`\u274c Datei nicht gefunden: ${VERBOSE ? filePath : path.basename(filePath)}`));
     return { success: false, renamed: false, oldName: path.basename(filePath), newName: '', error: 'Datei nicht gefunden' };
   }
   
@@ -277,31 +340,45 @@ async function processFile(
   const supported = ['.pdf', '.docx', '.pages', '.png', '.jpg', '.jpeg', '.txt'];
   
   if (!supported.includes(ext)) {
-    return { success: false, renamed: false, oldName: path.basename(filePath), newName: '', error: `Format ${ext} nicht unterstützt` };
+    console.error(chalk.red(`\u274c Format ${ext} nicht unterst\u00fctzt`));
+    return { success: false, renamed: false, oldName: path.basename(filePath), newName: '', error: `Format ${ext} nicht unterst\u00fctzt` };
   }
   
-  console.log(`\n🔍 Analysiere: ${path.basename(filePath)}`);
+  console.log(chalk.blue(`\n\ud83d\udd0d Analysiere: ${path.basename(filePath)}`));
   
   // Text extrahieren
   const text = await extractText(filePath);
   
   if (!text || text.trim().length < 10) {
-    console.log(`⚠️  Konnte keinen Text extrahieren`);
+    console.log(chalk.yellow(`\u26a0\ufe0f  Konnte keinen Text extrahieren`));
     return { success: true, renamed: false, oldName: path.basename(filePath), newName: '', error: 'Kein Text gefunden' };
   }
   
-  console.log(`✅ Text extrahiert: ${text.length} Zeichen`);
+  if (VERBOSE) {
+    console.log(chalk.green(`\u2705 Text extrahiert: ${text.length} Zeichen`));
+    console.log(chalk.gray('Vorschau:'), text.substring(0, 200).replace(/\n/g, ' ') + '...');
+  } else {
+    console.log(chalk.green(`\u2705 Text extrahiert: ${text.length} Zeichen`));
+  }
   
   // Namensvorschlag generieren
   const originalName = path.basename(filePath);
   const suggestion = generateSmartFilename(text, originalName, filePath);
   
-  console.log(`\n📝 Vorschlag:`);
-  console.log(`   Alt: ${originalName}`);
-  console.log(`   Neu: ${suggestion}`);
+  // Opt-20: Validate generated filename
+  const validation = validateFilename(suggestion);
+  if (!validation.valid) {
+    console.error(chalk.red(`\u274c Generierter Name ung\u00fcltig:`));
+    validation.errors.forEach(err => console.error(chalk.red(`  \u2022 ${err}`)));
+    return { success: false, renamed: false, oldName: originalName, newName: suggestion, error: validation.errors.join(', ') };
+  }
+  
+  console.log(chalk.cyan(`\n\ud83d\udcdd Vorschlag:`));
+  console.log(chalk.gray(`   Alt: ${originalName}`));
+  console.log(chalk.green(`   Neu: ${suggestion}`));
   
   if (originalName === suggestion) {
-    console.log(`\n✨ Name ist bereits optimal!`);
+    console.log(chalk.green(`\n\u2728 Name ist bereits optimal!`));
     return { success: true, renamed: false, oldName: originalName, newName: suggestion };
   }
   
@@ -326,20 +403,26 @@ async function processFile(
     
     // Prüfe ob Ziel existiert
     if (fs.existsSync(newPath)) {
-      console.error(`❌ Datei existiert bereits: ${suggestion}`);
+      console.error(chalk.red(`\u274c Datei existiert bereits: ${suggestion}`));
       return { success: false, renamed: false, oldName: originalName, newName: suggestion, error: 'Ziel existiert bereits' };
     }
     
     try {
-      fs.renameSync(filePath, newPath);
-      console.log(`\n✅ Erfolgreich umbenannt!`);
+      fs.renameSync(filePath, newPath);      
+      // Opt-17: Record rename for undo functionality
+      recordRename(filePath, newPath);
+            console.log(chalk.green(`\n\u2705 Erfolgreich umbenannt!`));
+      if (VERBOSE) {
+        console.log(chalk.gray(`   Von: ${filePath}`));
+        console.log(chalk.gray(`   Nach: ${newPath}`));
+      }
       return { success: true, renamed: true, oldName: originalName, newName: suggestion };
     } catch (error) {
-      console.error(`❌ Umbenennung fehlgeschlagen:`, error);
+      console.error(chalk.red(`\u274c Umbenennung fehlgeschlagen:`), VERBOSE ? error : '');
       return { success: false, renamed: false, oldName: originalName, newName: suggestion, error: 'Umbenennung fehlgeschlagen' };
     }
   } else {
-    console.log(`\n❌ Abgebrochen`);
+    console.log(chalk.yellow(`\n\u274c Abgebrochen`));
     return { success: true, renamed: false, oldName: originalName, newName: suggestion };
   }
 }
@@ -350,36 +433,111 @@ async function main() {
   
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     console.log(`
-MCP Document Intelligence CLI v1.0
+${chalk.bold.cyan('MCP Document Intelligence CLI v2.0')}
 
-Verwendung:
+${chalk.bold('Verwendung:')}
   mcp-scan <datei> [<datei2> ...]   Analysiert eine oder mehrere Dateien
   mcp-scan <datei> --preview        Analysiert ohne Umbenennung
   mcp-scan <datei> --execute        Benennt automatisch um (ohne Dialog)
   mcp-scan <datei> --silent         Keine Benachrichtigungen
+  mcp-scan <datei> --verbose        Detaillierte Debug-Ausgabe
 
-Mehrfachdateien:
+${chalk.bold('Spezial-Befehle:')}
+  mcp-scan --setup                  Interaktiver Setup-Wizard
+  mcp-scan --undo                   Macht letzte Batch-Umbenennung rückgängig
+  mcp-scan --undo-stats             Zeigt Undo-Statistiken
+
+${chalk.bold('Mehrfachdateien:')}
   mcp-scan file1.pdf file2.pdf file3.pdf --execute
   mcp-scan ~/Downloads/*.pdf --preview
 
-Beispiele:
+${chalk.bold('Beispiele:')}
   mcp-scan ~/Downloads/scan123.pdf
   mcp-scan invoice.pdf --execute
   mcp-scan document.docx --preview --silent
-  mcp-scan *.pdf --execute
+  mcp-scan *.pdf --execute --verbose
 `);
     process.exit(0);
+  }
+  
+  // Opt-13: Handle --setup command
+  if (args.includes('--setup')) {
+    await runSetupWizard();
+    process.exit(0);
+  }
+  
+  // Opt-17: Handle --undo command
+  if (args.includes('--undo')) {
+    console.log(chalk.cyan('\\n🔄 Mache letzte Batch-Umbenennung rückgängig...\\n'));
+    const result = undoLastBatch();
+    
+    if (result.success > 0) {
+      console.log(chalk.green(`✅ ${result.success} Datei(en) wiederhergestellt`));
+    }
+    if (result.failed > 0) {
+      console.log(chalk.red(`❌ ${result.failed} Fehler:`));
+      result.errors.forEach(err => console.log(chalk.red(`  • ${err}`)));
+    }
+    if (result.success === 0 && result.failed === 0) {
+      console.log(chalk.yellow('⚠️  Keine Operationen zum Rückgängigmachen'));
+    }
+    console.log();
+    process.exit(result.failed > 0 ? 1 : 0);
+  }
+  
+  // Handle --undo-stats command
+  if (args.includes('--undo-stats')) {
+    const stats = getUndoStats();
+    console.log(chalk.cyan('\\n📊 Undo-Statistiken:\\n'));
+    console.log(chalk.gray(`  Gesamt-Operationen: ${stats.totalOperations}`));
+    console.log(chalk.gray(`  Letzte Batch-Größe: ${stats.lastBatchSize}`));
+    if (stats.lastBatchTime) {
+      console.log(chalk.gray(`  Letzte Batch-Zeit:  ${stats.lastBatchTime.toLocaleString('de-DE')}`));
+    }
+    console.log();
+    process.exit(0);
+  }
+  
+  // Opt-01: Load configuration
+  CONFIG = loadConfig();
+  
+  // Check if setup is needed (first run)
+  if (!configExists() && !args.includes('--setup')) {
+    console.log(chalk.yellow('\\n⚠️  Keine Konfiguration gefunden. Starte Setup-Wizard...\\n'));
+    await runSetupWizard();
+    CONFIG = loadConfig();
   }
   
   const preview = args.includes('--preview');
   const execute = args.includes('--execute');
   const silent = args.includes('--silent');
+  VERBOSE = args.includes('--verbose');
+  
+  // Merge CLI args with config
+  CONFIG = mergeWithCLI(CONFIG, { preview, execute, silent, verbose: VERBOSE });
+  
+  // Apply config defaults if no explicit mode given
+  if (!preview && !execute) {
+    if (CONFIG.defaultMode === 'execute') {
+      // Don't override, just inform in verbose mode
+      if (VERBOSE) {
+        console.log(chalk.gray('ℹ️  Config-Standard: execute-Modus\\n'));
+      }
+    }
+  }
+  
+  if (VERBOSE) {
+    console.log(chalk.gray('🔧 Verbose-Modus aktiviert'));
+    if (CONFIG.enableCategories) {
+      console.log(chalk.gray('📁 Kategorisierung aktiviert'));
+    }
+  }
   
   // Sammle alle Datei-Argumente (keine Flags)
   const filePaths = args.filter(arg => !arg.startsWith('--'));
   
   if (filePaths.length === 0) {
-    console.error('❌ Keine Dateien angegeben');
+    console.error(chalk.red('\u274c Keine Dateien angegeben'));
     process.exit(1);
   }
   
@@ -397,7 +555,7 @@ Beispiele:
       const result = await processFile(filePath, options);
       results.push(result);
     } catch (error) {
-      console.error(`Fehler bei ${path.basename(filePath)}:`, error);
+      console.error(chalk.red(`Fehler bei ${path.basename(filePath)}:`), VERBOSE ? error : '');
       results.push({
         success: false,
         renamed: false,
@@ -425,20 +583,20 @@ Beispiele:
     console.log(`❌ Fehler: ${failed}\n`);
     
     if (renamed > 0) {
-      console.log(`Umbenannte Dateien:`);
+      console.log(chalk.bold('Umbenannte Dateien:'));
       results.forEach(r => {
         if (r.renamed) {
-          console.log(`  • ${r.oldName}`);
-          console.log(`    → ${r.newName}`);
+          console.log(chalk.gray(`  \u2022 ${r.oldName}`));
+          console.log(chalk.green(`    \u2192 ${r.newName}`));
         }
       });
     }
     
     if (failed > 0) {
-      console.log(`\nFehlerhafte Dateien:`);
+      console.log(chalk.bold.red('\nFehlerhafte Dateien:'));
       results.forEach(r => {
         if (!r.success) {
-          console.log(`  • ${r.oldName}: ${r.error}`);
+          console.log(chalk.red(`  \u2022 ${r.oldName}: ${r.error}`));
         }
       });
     }
@@ -463,6 +621,6 @@ Beispiele:
 }
 
 main().catch(error => {
-  console.error("Fehler:", error);
+  console.error(chalk.red.bold("\u274c Kritischer Fehler:"), VERBOSE ? error : error.message);
   process.exit(1);
 });
