@@ -227,9 +227,22 @@ async function extractText(filePath: string, config: ScanConfig): Promise<string
       return await extractTextWithOCR(filePath, config);
     }
     
-    if (ext === '.docx') {
-      const result = await mammoth.extractRawText({ path: filePath });
-      return result.value;
+    if (ext === '.docx' || ext === '.doc') {
+      try {
+        const result = await mammoth.extractRawText({ path: filePath });
+        return result.value;
+      } catch (docError) {
+        if (ext === '.doc' && VERBOSE) {
+          console.log(chalk.yellow('⚠️  .doc Format nicht lesbar (nur .docx unterstützt)'));
+        }
+        return '';  // Führt zu "unlesbar" Markierung
+      }
+    }
+    
+    if (ext === '.rar' || ext === '.zip') {
+      // Archive-Dateien enthalten keinen extrahierbaren Text
+      if (VERBOSE) console.log(chalk.yellow('⚠️  Archive-Datei - kein Text extrahierbar'));
+      return '';
     }
     
     if (ext === '.pages') {
@@ -450,7 +463,19 @@ function generateSmartFilenamePatternBased(
     }
   }
   
+  // Wenn keine Daten gefunden: Originalname mit Hinweis beibehalten
   if (suggestions.length === 0) {
+    const nameWithoutExt = path.basename(originalName, ext);
+    return `${nameWithoutExt} (nicht_klassifizierbar)${ext}`;
+  }
+  
+  // Wenn nur Datum, aber keine Firma/Typ: Hinweis hinzufügen
+  if (suggestions.length === 1 && timestamp && suggestions[0] === timestamp) {
+    const nameWithoutExt = path.basename(originalName, ext);
+    // Behalte originalen Namen und füge nur Datum hinzu wenn nicht schon vorhanden
+    if (!originalName.match(/^\d{4}-\d{2}-\d{2}/)) {
+      return `${timestamp}_${nameWithoutExt.replace(/^\d{4}-\d{2}-\d{2}[_-]?/, '')}${ext}`;
+    }
     return originalName;
   }
   
@@ -513,7 +538,7 @@ async function processFile(
   }
   
   const ext = path.extname(filePath).toLowerCase();
-  const supported = ['.pdf', '.docx', '.pages', '.png', '.jpg', '.jpeg', '.txt'];
+  const supported = ['.pdf', '.doc', '.docx', '.pages', '.png', '.jpg', '.jpeg', '.txt', '.rar', '.zip'];
   
   if (!supported.includes(ext)) {
     console.error(chalk.red(`\u274c Format ${ext} nicht unterst\u00fctzt`));
@@ -526,8 +551,56 @@ async function processFile(
   const text = await extractText(filePath, config);
   
   if (!text || text.trim().length < 10) {
-    console.log(chalk.yellow(`\u26a0\ufe0f  Konnte keinen Text extrahieren`));
-    return { success: true, renamed: false, oldName: path.basename(filePath), newName: '', error: 'Kein Text gefunden' };
+    console.log(chalk.yellow(`⚠️  Konnte keinen Text extrahieren - behalte Dateinamen mit Hinweis`));
+    
+    // Originalnamen beibehalten mit Zusatz "(unlesbar)"
+    const originalName = path.basename(filePath);
+    const ext = path.extname(originalName);
+    const nameWithoutExt = path.basename(originalName, ext);
+    const suggestion = `${nameWithoutExt} (unlesbar)${ext}`;
+    
+    console.log(chalk.cyan(`\n📝 Vorschlag:`));
+    console.log(chalk.gray(`   Alt: ${originalName}`));
+    console.log(chalk.yellow(`   Neu: ${suggestion}`));
+    
+    if (preview) {
+      return { success: true, renamed: false, oldName: originalName, newName: suggestion };
+    }
+    
+    // Optional umbenennen wenn nicht bereits "(unlesbar)" im Namen
+    if (!originalName.includes('(unlesbar)')) {
+      let shouldRename = execute;
+      
+      if (!execute && !silent) {
+        const response = showDialog(
+          `Dokument unlesbar - Hinweis einfügen?\n\nAlt: ${originalName}\n\nNeu: ${suggestion}`,
+          ["Umbenennen", "Skip"]
+        );
+        shouldRename = response === "Umbenennen";
+      }
+      
+      if (shouldRename) {
+        const dir = path.dirname(filePath);
+        const newPath = path.join(dir, suggestion);
+        
+        if (fs.existsSync(newPath)) {
+          console.log(chalk.yellow(`⚠️  Zieldatei existiert bereits: ${suggestion}`));
+          return { success: true, renamed: false, oldName: originalName, newName: suggestion };
+        }
+        
+        try {
+          fs.renameSync(filePath, newPath);
+          recordRename(filePath, newPath);
+          console.log(chalk.green(`\n✅ Hinweis "(unlesbar)" hinzugefügt`));
+          return { success: true, renamed: true, oldName: originalName, newName: suggestion };
+        } catch (error) {
+          console.log(chalk.yellow(`⚠️  Umbenennung übersprungen`));
+          return { success: true, renamed: false, oldName: originalName, newName: suggestion };
+        }
+      }
+    }
+    
+    return { success: true, renamed: false, oldName: originalName, newName: suggestion };
   }
   
   if (VERBOSE) {

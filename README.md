@@ -8,7 +8,7 @@ Standalone Command-Line Tool mit macOS Kontextmenü-Integration (Quick Action) f
 [![macOS](https://img.shields.io/badge/macOS-Monterey%2B-blue)](https://www.apple.com/macos/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)](https://nodejs.org/)
 [![OCR](https://img.shields.io/badge/OCR-Tesseract-orange)](https://github.com/tesseract-ocr/tesseract)
-[![Version](https://img.shields.io/badge/Version-2.2.0-brightgreen)](package.json)
+[![Version](https://img.shields.io/badge/Version-2.2.2-brightgreen)](package.json)
 [![Security](https://img.shields.io/badge/Security-ISO%2025010-blue)](SECURITY.md)
 
 ---
@@ -122,9 +122,11 @@ Standalone Command-Line Tool mit macOS Kontextmenü-Integration (Quick Action) f
 
 - ✅ **PDF** (auch gescannte mit OCR)
 - ✅ **DOCX** (Microsoft Word)
+- ⚠️ **DOC** (Alte Word-Formate - limitiert, wird als "unlesbar" markiert)
 - ✅ **Pages** (Apple Pages)
 - ✅ **PNG/JPG/JPEG** (Bilder mit OCR)
 - ✅ **TXT** (Textdateien mit UTF-8/Latin-1)
+- 📦 **RAR/ZIP** (Archive - kein Text extrahierbar, Dateiname wird beibehalten)
 
 ### 🚀 Batch-Verarbeitung
 

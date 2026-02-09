@@ -63,7 +63,7 @@ fi
 for file in "$@"
 do
   # Nur Dateityp prüfen, nicht Pfad - funktioniert überall (Downloads, Desktop, etc.)
-  if [[ "$file" =~ \.(pdf|docx|doc|pages|txt|png|jpg|jpeg)$ ]]; then
+  if [[ "$file" =~ \.(pdf|docx|doc|pages|txt|png|jpg|jpeg|rar|zip)$ ]]; then
     mcp-scan "$file" --preview --verbose
   fi
 done
@@ -92,7 +92,7 @@ skipped=0
 # Für jede ausgewählte Datei (funktioniert überall!)
 for file in "$@"
 do
-  if [[ "$file" =~ \.(pdf|docx|doc|pages|txt|png|jpg|jpeg)$ ]]; then
+  if [[ "$file" =~ \.(pdf|docx|doc|pages|txt|png|jpg|jpeg|rar|zip)$ ]]; then
     result=$(mcp-scan "$file" --execute --silent 2>&1)
     
     if echo "$result" | grep -q "Erfolgreich umbenannt"; then
@@ -130,12 +130,12 @@ response=$(osascript -e "button returned of (display dialog \"$message\" buttons
 if [ "$response" = "Umbenennen" ]; then
   # Execute-Modus (funktioniert überall!)
   for file in "$@"; do
-    [[ "$file" =~ \.(pdf|docx|doc|pages|txt|png|jpg|jpeg)$ ]] && mcp-scan "$file" --execute
+    [[ "$file" =~ \.(pdf|docx|doc|pages|txt|png|jpg|jpeg|rar|zip)$ ]] && mcp-scan "$file" --execute
   done
 elif [ "$response" = "Nur Vorschau" ]; then
   # Preview-Modus (funktioniert überall!)
   for file in "$@"; do
-    [[ "$file" =~ \.(pdf|docx|doc|pages|txt|png|jpg|jpeg)$ ]] && mcp-scan "$file" --preview
+    [[ "$file" =~ \.(pdf|docx|doc|pages|txt|png|jpg|jpeg|rar|zip)$ ]] && mcp-scan "$file" --preview
   done
 fi
 ```

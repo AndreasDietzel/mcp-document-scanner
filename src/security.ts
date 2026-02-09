@@ -24,8 +24,9 @@ export const SECURITY_LIMITS = {
 
 // Allowed file extensions (whitelist approach)
 const ALLOWED_EXTENSIONS = [
-  '.pdf', '.docx', '.pages', '.txt',
-  '.png', '.jpg', '.jpeg', '.tiff', '.bmp'
+  '.pdf', '.doc', '.docx', '.pages', '.txt',
+  '.png', '.jpg', '.jpeg', '.tiff', '.bmp',
+  '.rar', '.zip'  // Archives: Nur Metadaten, kein Textinhalt
 ];
 
 /**
