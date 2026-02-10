@@ -1,0 +1,123 @@
+{
+  // TypeScript
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "relative",
+  
+  // Editor
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.rulers": [100, 120],
+  
+  // Files
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/build": true,
+    "**/.DS_Store": true,
+    "**/*.js": {
+      "when": "$(basename).ts"
+    },
+    "**/*.js.map": true,
+    "**/*.d.ts": {
+      "when": "$(basename).ts"
+    }
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/build/**": true,
+    "**/.git/objects/**": true,
+    "**/.doc-scan.json": true,
+    "**/.doc-scan-undo.json": true,
+    "**/.mcp-scan.json": true,
+    "**/.mcp-scan-undo.json": true
+  },
+  "files.associations": {
+    "*.json": "jsonc",
+    ".doc-scan.json": "jsonc",
+    "config.example.json": "jsonc"
+  },
+  
+  // Search
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/build": true,
+    "**/.git": true,
+    "**/package-lock.json": true
+  },
+  
+  // Terminal
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  
+  // Git
+  "git.ignoreLimitWarning": true,
+  "git.autofetch": true,
+  
+  // Security: Exclude sensitive files from being opened accidentally
+  "files.readonlyInclude": {
+    "**/.doc-scan.json": true,
+    "**/.mcp-scan.json": true
+  },
+  
+  // Language specific
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "strings": "off",
+      "other": "off"
+    }
+  },
+  
+  // Code Spell Checker
+  "cSpell.words": [
+    "Allianz",
+    "Barmer",
+    "buildFilenameFromAI",
+    "Categorization",
+    "Commerzbank",
+    "doctype",
+    "Finanzen",
+    "Gesundheit",
+    "Krankenkasse",
+    "Kuendigung",
+    "Lieferschein",
+    "Mobilfunk",
+    "Perplexity",
+    "Postbank",
+    "Rechnung",
+    "Sparkasse",
+    "Techniker",
+    "Telekommunikation",
+    "tesseract",
+    "Vertrag",
+    "Vodafone",
+    "Volksbank"
+  ],
+  
+  // NPM Scripts
+  "npm.enableScriptExplorer": true,
+  
+  // Debug
+  "debug.internalConsoleOptions": "neverOpen",
+  "debug.terminal.clearBeforeReusing": true
+}

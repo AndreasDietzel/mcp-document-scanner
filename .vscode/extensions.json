@@ -1,0 +1,25 @@
+{
+  "recommendations": [
+    // TypeScript & Node.js Development
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    
+    // Git
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    
+    // Markdown
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    
+    // Utilities
+    "christian-kohler.path-intellisense",
+    "streetsidesoftware.code-spell-checker",
+    "ms-vscode.vscode-typescript-next",
+    
+    // Code Quality
+    "usernamehw.errorlens",
+    "wix.vscode-import-cost"
+  ],
+  "unwantedRecommendations": []
+}

@@ -1,0 +1,172 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "Document Scanner"
+    }
+  ],
+  "settings": {
+    // TypeScript
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true,
+    
+    // Editor
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit"
+    },
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    
+    // Files
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/build": true,
+      "**/.DS_Store": true,
+      "**/*.js": {
+        "when": "$(basename).ts"
+      },
+      "**/*.js.map": true,
+      "**/*.d.ts": {
+        "when": "$(basename).ts"
+      }
+    },
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/build/**": true
+    },
+    
+    // Search
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/build": true,
+      "**/.git": true
+    },
+    
+    // Terminal
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    
+    // Git
+    "git.ignoreLimitWarning": true,
+    
+    // Security: Hide sensitive config files
+    "files.watcherExclude": {
+      "**/.doc-scan.json": true,
+      "**/.doc-scan-undo.json": true,
+      "**/.mcp-scan.json": true,
+      "**/.mcp-scan-undo.json": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      // TypeScript & Node.js
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      
+      // Git
+      "eamodio.gitlens",
+      
+      // Markdown
+      "yzhang.markdown-all-in-one",
+      "davidanson.vscode-markdownlint",
+      
+      // Utilities
+      "christian-kohler.path-intellisense",
+      "streetsidesoftware.code-spell-checker"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build",
+        "type": "npm",
+        "script": "build",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": ["$tsc"],
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "Watch",
+        "type": "npm",
+        "script": "watch",
+        "isBackground": true,
+        "problemMatcher": ["$tsc-watch"],
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "Test: Preview Mode",
+        "type": "shell",
+        "command": "doc-scan test-data/*.txt --preview --verbose",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": true,
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "Link globally",
+        "type": "npm",
+        "script": "link",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "Setup Wizard",
+        "type": "shell",
+        "command": "doc-scan --setup",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": true,
+          "panel": "shared"
+        }
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "Debug: doc-scan",
+        "skipFiles": ["<node_internals>/**"],
+        "program": "${workspaceFolder}/build/cli.js",
+        "args": ["test-data/test-rechnung.txt", "--preview", "--verbose"],
+        "outFiles": ["${workspaceFolder}/build/**/*.js"],
+        "console": "integratedTerminal",
+        "internalConsoleOptions": "neverOpen"
+      },
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "Debug: Setup Wizard",
+        "skipFiles": ["<node_internals>/**"],
+        "program": "${workspaceFolder}/build/cli.js",
+        "args": ["--setup"],
+        "outFiles": ["${workspaceFolder}/build/**/*.js"],
+        "console": "integratedTerminal",
+        "internalConsoleOptions": "neverOpen"
+      }
+    ]
+  }
+}

@@ -40,7 +40,7 @@ mcp-scan-config.json
 .LSOverride
 
 # IDEs
-.vscode/
+# .vscode/ - VS Code config should be committed for better DX
 .idea/
 *.swp
 *.swo
