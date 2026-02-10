@@ -12,22 +12,6 @@ Standalone Command-Line Tool mit macOS Kontextmenü-Integration (Quick Action) f
 [![Security](https://img.shields.io/badge/Security-ISO%2025010-blue)](SECURITY.md)
 
 ---
-
-## ✨ Features v2.4 - Smart Categorization
-
-### 📂 **NEU: Automatische Kategorisierung**
-- **12 Standardkategorien**: Finanzen, Beruf, Gesundheit, Versicherungen, Wohnen, etc.
-- **AI-gestützte Zuordnung**: Perplexity erkennt Firma → passende Kategorie
-- **Jahr-spezifisch**: Dateien bleiben im Jahr-Ordner (z.B. 2026/01_Finanzen/)
-- **Intelligente Fallbacks**: OCR → AI → Pattern-Matching
-
-**Ordnerstruktur (2000-2026+):**
-```
-2026/
-├── 01_Finanzen/
-├── 02_Beruf_Karriere/
-├── 03_Gesundheit/
-├── 04_Versicherungen/
 ├── 05_Wohnen/
 ├── 06_Telekommunikation/
 ├── 07_Mobilitaet/
@@ -106,12 +90,6 @@ Standalone Command-Line Tool mit macOS Kontextmenü-Integration (Quick Action) f
 - **OCR-Konfiguration** (Sprache, Enable/Disable)
 - **Eigene Firmennamen** hinzufügen
 - **CLI überschreibt Config** (flexible Nutzung)
-
-### 📁 **NEU: Kategorisierung nach Branchen**
-- **8 Kategorien:** Telekommunikation, Versicherung, Gesundheit, Finanzen, etc.
-- **40+ Firmen** automatisch erkannt
-- **Ordner-Vorschläge:** 01_Finanzen, 11_Telekommunikation, etc.
-- **Aktivierbar** via Config oder Setup
 
 ### ⏮️ **NEU: Undo-Funktion**
 - **`doc-scan --undo`** - Letzte Batch-Umbenennung rückgängig machen

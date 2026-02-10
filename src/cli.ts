@@ -312,78 +312,13 @@ function extractYearFromPath(filePath: string): string | null {
  * Move file to appropriate category folder within same year
  * Example: /Documents/2026/file.pdf → /Documents/2026/01_Finanzen/file.pdf
  */
+// Function disabled/removed as requested
 function moveToCategory(
   currentPath: string,
   companyOrCategoryKey: string | null,
   verbose: boolean = false
 ): string | null {
-  if (!companyOrCategoryKey || !CONFIG?.enableCategories) {
-    return null; // No category assignment needed
-  }
-  
-  let category = getCategoryForCompany(companyOrCategoryKey);
-  
-  // Fallback: Check direct category key
-  if (!category && CATEGORIES[companyOrCategoryKey]) {
-    category = CATEGORIES[companyOrCategoryKey];
-  }
-  
-  if (!category) {
-    if (verbose) {
-      console.log(chalk.gray(`   ℹ️  Keine Kategorie für ${companyOrCategoryKey} gefunden`));
-    }
-    return null;
-  }
-  
-  const year = extractYearFromPath(currentPath);
-  if (!year) {
-    if (verbose) {
-      console.log(chalk.gray(`   ℹ️  Kein Jahr im Pfad erkannt: ${currentPath}`));
-    }
-    return null;
-  }
-  
-  // Determine year folder path dynamically (relative to current file, not hardcoded ~/)
-  const parts = currentPath.split(path.sep);
-  const yearIndex = parts.lastIndexOf(year);
-  
-  if (yearIndex === -1) {
-     return null;
-  }
-  
-  // Path up to /.../Year
-  const yearFolderPath = parts.slice(0, yearIndex + 1).join(path.sep);
-  const categoryFolder = path.join(yearFolderPath, category.folder);
-  
-  // Ensure category folder exists
-  if (!fs.existsSync(categoryFolder)) {
-    if (verbose) {
-      console.log(chalk.gray(`   📁 Erstelle Ordner: ${category.folder}`));
-    }
-    fs.mkdirSync(categoryFolder, { recursive: true });
-  }
-  
-  const fileName = path.basename(currentPath);
-  const targetPath = path.join(categoryFolder, fileName);
-  
-  // Check if target already exists
-  if (fs.existsSync(targetPath)) {
-    if (verbose) {
-      console.log(chalk.yellow(`   ⚠️  Datei existiert bereits in Kategorie: ${category.folder}/${fileName}`));
-    }
-    return null;
-  }
-  
-  try {
-    fs.renameSync(currentPath, targetPath);
-    console.log(chalk.magenta(`   📁 Verschoben nach: ${category.name} (${category.folder}/)`));
-    return targetPath;
-  } catch (error) {
-    if (verbose) {
-      console.log(chalk.yellow(`   ⚠️  Verschiebung fehlgeschlagen: ${error}`));
-    }
-    return null;
-  }
+  return null;
 }
 
 // Intelligente Namensvorschläge (mit AI oder Fallback auf Pattern-Matching)
@@ -849,15 +784,10 @@ async function processFile(
         console.log(chalk.gray(`   Nach: ${newPath}`));
       }
       
-      // Move to category folder if categorization is enabled
+      // Move to category folder - DISABLED as requested
+      // The logic has been removed to keep the tool simple
+      // and avoid creating unwanted folder structures.
       let finalPath = newPath;
-      if (CONFIG?.enableCategories && DETECTED_COMPANY) {
-        const categoryPath = moveToCategory(newPath, DETECTED_COMPANY, VERBOSE);
-        if (categoryPath) {
-          recordRename(newPath, categoryPath); // Track category move for undo
-          finalPath = categoryPath;
-        }
-      }
       
       return { success: true, renamed: true, oldName: originalName, newName: path.basename(finalPath) };
     } catch (error) {
