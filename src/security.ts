@@ -25,7 +25,7 @@ export const SECURITY_LIMITS = {
 // Allowed file extensions (whitelist approach)
 const ALLOWED_EXTENSIONS = [
   // Documents
-  '.pdf', '.txt',
+  '.pdf', '.txt', '.rtf',
   // Microsoft Office
   '.doc', '.docx',      // Word
   '.xls', '.xlsx',      // Excel

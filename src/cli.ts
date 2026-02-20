@@ -208,6 +208,25 @@ async function extractTextWithOCR(filePath: string, config: ScanConfig): Promise
   return "";
 }
 
+// macOS textutil — extrahiert Klartext aus .doc, .docx, .rtf, .odt
+function extractWithTextutil(filePath: string): string | null {
+  try {
+    execSync('which textutil', { stdio: 'ignore' });
+    const result = execSync(`textutil -convert txt -stdout "${filePath}"`, {
+      timeout: 15000,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    if (result && result.trim().length > 10) {
+      if (VERBOSE) console.log(chalk.green(`✅ textutil: ${result.trim().length} Zeichen extrahiert`));
+      return result.trim();
+    }
+  } catch (error) {
+    if (VERBOSE) console.log(chalk.gray('   textutil fehlgeschlagen oder nicht verfügbar'));
+  }
+  return null;
+}
+
 // Extrahiere Text aus verschiedenen Formaten
 async function extractText(filePath: string, config: ScanConfig): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
@@ -230,17 +249,19 @@ async function extractText(filePath: string, config: ScanConfig): Promise<string
     if (ext === '.docx' || ext === '.doc') {
       try {
         const result = await mammoth.extractRawText({ path: filePath });
-        return result.value;
-      } catch (docError) {
-        if (VERBOSE) {
-          if (ext === '.doc') {
-            console.log(chalk.yellow('⚠️  .doc Format nicht lesbar (nur .docx unterstützt)'));
-          } else {
-            console.log(chalk.yellow('⚠️  Word-Dokument konnte nicht gelesen werden'));
-          }
+        if (result.value && result.value.trim().length > 10) {
+          return result.value;
         }
-        return '';  // Führt zu "unlesbar" Markierung
+      } catch (docError) {
+        // mammoth scheitert oft bei .doc — weiter zum textutil Fallback
       }
+      // Fallback: macOS textutil (unterstützt .doc und .docx nativ)
+      const textutilResult = extractWithTextutil(filePath);
+      if (textutilResult) return textutilResult;
+      if (VERBOSE) {
+        console.log(chalk.yellow(`⚠️  ${ext}-Datei konnte weder mit mammoth noch textutil gelesen werden`));
+      }
+      return '';
     }
     
     // Microsoft Excel
@@ -255,14 +276,18 @@ async function extractText(filePath: string, config: ScanConfig): Promise<string
       return '';
     }
     
-    // Apple Office
+    // Apple Numbers / Keynote — Protobuf-Format, kein Klartext extrahierbar
     if (ext === '.numbers' || ext === '.keynote') {
-      if (VERBOSE) console.log(chalk.yellow(`⚠️  ${ext.slice(1).charAt(0).toUpperCase() + ext.slice(2)}-Datei - kein Text extrahierbar`));
+      if (VERBOSE) console.log(chalk.yellow(`⚠️  ${ext.slice(1).charAt(0).toUpperCase() + ext.slice(2)}-Datei — kein Klartext extrahierbar, nutze Dateinamen`));
       return '';
     }
     
-    // OpenOffice/LibreOffice
+    // OpenOffice/LibreOffice — textutil kann .odt lesen
     if (ext === '.odt' || ext === '.ods' || ext === '.odp') {
+      if (ext === '.odt') {
+        const textutilResult = extractWithTextutil(filePath);
+        if (textutilResult) return textutilResult;
+      }
       if (VERBOSE) {
         const type = ext === '.odt' ? 'Text' : ext === '.ods' ? 'Tabelle' : 'Präsentation';
         console.log(chalk.yellow(`⚠️  OpenOffice ${type}-Datei - kein Text extrahierbar`));
@@ -276,13 +301,37 @@ async function extractText(filePath: string, config: ScanConfig): Promise<string
       return '';
     }
     
+    // RTF — macOS textutil extrahiert Klartext
+    if (ext === '.rtf') {
+      const textutilResult = extractWithTextutil(filePath);
+      if (textutilResult) return textutilResult;
+      // Fallback: RTF-Tags manuell strippen
+      try {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const stripped = raw.replace(/\{\\[^{}]*\}/g, '').replace(/\\[a-z]+\d*\s?/gi, '').replace(/[{}]/g, '');
+        if (stripped.trim().length > 10) return stripped;
+      } catch (e) { /* ignore */ }
+      if (VERBOSE) console.log(chalk.yellow('⚠️  RTF-Datei konnte nicht gelesen werden'));
+      return '';
+    }
+    
+    // Apple Pages — ZIP mit index.xml (älteres Format) oder Protobuf (neueres)
     if (ext === '.pages') {
-      const zip = new AdmZip(filePath);
-      const entries = zip.getEntries();
-      const indexEntry = entries.find(e => e.entryName === 'index.xml');
-      if (indexEntry) {
-        return indexEntry.getData().toString('utf8');
+      try {
+        const zip = new AdmZip(filePath);
+        const entries = zip.getEntries();
+        const indexEntry = entries.find(e => e.entryName === 'index.xml');
+        if (indexEntry) {
+          return indexEntry.getData().toString('utf8');
+        }
+      } catch (zipError) {
+        if (VERBOSE) console.log(chalk.gray('   Pages ZIP-Extraktion fehlgeschlagen, versuche textutil...'));
       }
+      // Fallback für neueres Pages-Format
+      const textutilResult = extractWithTextutil(filePath);
+      if (textutilResult) return textutilResult;
+      if (VERBOSE) console.log(chalk.yellow('⚠️  Pages-Datei konnte nicht gelesen werden'));
+      return '';
     }
     
     if (['.png', '.jpg', '.jpeg'].includes(ext)) {
@@ -607,7 +656,7 @@ async function processFile(
   
   const ext = path.extname(filePath).toLowerCase();
   const supported = [
-    '.pdf', '.txt',
+    '.pdf', '.txt', '.rtf',
     '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',  // MS Office
     '.pages', '.numbers', '.keynote',  // Apple
     '.odt', '.ods', '.odp',  // OpenOffice
