@@ -227,6 +227,42 @@ function extractWithTextutil(filePath: string): string | null {
   return null;
 }
 
+// Extrahiere lesbaren Text aus Apple IWA (Protobuf) Dateien (Pages/Numbers/Keynote)
+function extractTextFromIWA(data: Buffer): string {
+  // IWA nutzt Snappy-ähnliches Framing: 1 Byte Typ + 3 Bytes Länge (LE) + Payload
+  let raw = Buffer.alloc(0);
+  let pos = 0;
+  try {
+    while (pos < data.length) {
+      if (pos + 4 > data.length) break;
+      pos += 1; // frame type
+      const frameLen = data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16);
+      pos += 3;
+      if (pos + frameLen > data.length) break;
+      raw = Buffer.concat([raw, data.subarray(pos, pos + frameLen)]);
+      pos += frameLen;
+    }
+  } catch {
+    raw = Buffer.from(data); // Fallback: rohe Daten verwenden
+  }
+  
+  // Extrahiere lesbare UTF-8 Strings (mind. 8 Zeichen) aus den Protobuf-Daten
+  const textParts: string[] = [];
+  const regex = /[\x20-\x7e\u00c0-\u024f]{8,}/g;
+  const rawStr = raw.toString('latin1');
+  let match;
+  while ((match = regex.exec(rawStr)) !== null) {
+    const s = match[0];
+    // Filtere UUIDs, technische IDs und Füllzeichen
+    if (/^[i]+$/.test(s)) continue;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}/.test(s)) continue;
+    if (/^[A-Z0-9_]{20,}$/.test(s)) continue;
+    textParts.push(s);
+  }
+  
+  return textParts.join(' ');
+}
+
 // Extrahiere Text aus verschiedenen Formaten
 async function extractText(filePath: string, config: ScanConfig): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
@@ -315,21 +351,31 @@ async function extractText(filePath: string, config: ScanConfig): Promise<string
       return '';
     }
     
-    // Apple Pages — ZIP mit index.xml (älteres Format) oder Protobuf (neueres)
+    // Apple Pages — ZIP mit index.xml (älteres Format) oder Protobuf/IWA (neueres)
     if (ext === '.pages') {
       try {
         const zip = new AdmZip(filePath);
         const entries = zip.getEntries();
+        
+        // Älteres Format: index.xml enthält Klartext
         const indexEntry = entries.find(e => e.entryName === 'index.xml');
         if (indexEntry) {
           return indexEntry.getData().toString('utf8');
         }
+        
+        // Neueres Format: Document.iwa enthält Protobuf mit Textfragmenten
+        const docEntry = entries.find(e => e.entryName === 'Index/Document.iwa');
+        if (docEntry) {
+          const iwaData = docEntry.getData();
+          const text = extractTextFromIWA(iwaData);
+          if (text.length > 10) {
+            if (VERBOSE) console.log(chalk.green(`✅ Pages IWA-Extraktion: ${text.length} Zeichen`));
+            return text;
+          }
+        }
       } catch (zipError) {
-        if (VERBOSE) console.log(chalk.gray('   Pages ZIP-Extraktion fehlgeschlagen, versuche textutil...'));
+        if (VERBOSE) console.log(chalk.gray('   Pages ZIP-Extraktion fehlgeschlagen'));
       }
-      // Fallback für neueres Pages-Format
-      const textutilResult = extractWithTextutil(filePath);
-      if (textutilResult) return textutilResult;
       if (VERBOSE) console.log(chalk.yellow('⚠️  Pages-Datei konnte nicht gelesen werden'));
       return '';
     }
