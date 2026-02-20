@@ -1,592 +1,273 @@
-# 🎯 Document Scanner CLI
-
-**Intelligente Dokumentenerkennung und Umbenennung mit OCR für macOS**
-
-Standalone Command-Line Tool mit macOS Kontextmenü-Integration (Quick Action) für automatische Dateibenennung basierend auf Dokumentinhalten.
+```
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║   ██████╗  ██████╗  ██████╗    ███████╗ ██████╗ █████╗ ███╗   ██╗       ║
+║   ██╔══██╗██╔═══██╗██╔════╝    ██╔════╝██╔════╝██╔══██╗████╗  ██║       ║
+║   ██║  ██║██║   ██║██║         ███████╗██║     ███████║██╔██╗ ██║       ║
+║   ██║  ██║██║   ██║██║         ╚════██║██║     ██╔══██║██║╚██╗██║       ║
+║   ██████╔╝╚██████╔╝╚██████╗   ███████║╚██████╗██║  ██║██║ ╚████║       ║
+║   ╚═════╝  ╚═════╝  ╚═════╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝     ║
+║                                                                          ║
+║            Intelligente Dokumentenerkennung für macOS                    ║
+║                            v2.4.1                                        ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+```
 
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![macOS](https://img.shields.io/badge/macOS-Monterey%2B-blue)](https://www.apple.com/macos/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)](https://nodejs.org/)
 [![OCR](https://img.shields.io/badge/OCR-Tesseract-orange)](https://github.com/tesseract-ocr/tesseract)
-[![Version](https://img.shields.io/badge/Version-2.3.0-brightgreen)](package.json)
-[![Security](https://img.shields.io/badge/Security-ISO%2025010-blue)](SECURITY.md)
-
----
-├── 05_Wohnen/
-├── 06_Telekommunikation/
-├── 07_Mobilitaet/
-├── 08_Reisen/
-├── 09_Behoerden/
-├── 10_Steuern/
-├── 11_Soziales/
-└── 99_Sonstiges/
-```
-
-**Workflow:**
-1. Dokument wird erkannt (Firma, Typ, Datum)
-2. AI ordnet Kategorie zu (z.B. Vodafone → Telekommunikation)
-3. Datei wird umbenannt UND in passenden Unterordner verschoben
-4. Jahr bleibt konstant (Datei wandert nicht zwischen Jahren)
+[![Version](https://img.shields.io/badge/Version-2.4.1-brightgreen)](package.json)
 
 ---
 
-## ✨ Features v2.3 - Personal Data Protection
-
-### 🔒 **NEU: Geburtsdatum-Schutz**
-- **Geburtsdatum-Konfiguration**: Verhindert Fehlerkennungen bei Briefkopf-Analysen
-- **Vertrauliche Behandlung**: Wie API-Keys, lokal in `~/.doc-scan.json` gespeichert
-- **Setup-Integration**: Einfache Eingabe im interaktiven Setup-Wizard
-
-## ✨ Features v2.2 - Security & OCR Fixes
-
-### 🔒 **Security & ISO 25010 Compliance**
-- **Input Validation**: Path Traversal Protection, File Size Limits (100MB)
-- **API Key Protection**: Sichere lokale Speicherung, Permission Checks
-- **Enhanced .gitignore**: Secrets/Keys werden automatisch geschützt
-- **Graceful Degradation**: Fallback bei Fehlern, keine Crashes
-
-### 🛠️ **NEU: Robuste macOS Quick Action**
-- **Funktioniert überall**: Downloads, Desktop, externe Laufwerke - keine Pfad-Einschränkungen!
-- **Kein nvm-Fehler mehr**: Robuste NODE_PATH Erkennung
-- **Unterstützt .doc**: Neben .docx auch alte Word-Formate
-
-### 📄 **FIX: Gescannte PDFs**
-- **PDF → PNG → OCR Workflow**: pdftoppm-Integration für gescannte Dokumente
-- **Config-basierte Sprache**: Nutzt OCR-Sprache aus Config
-- **Automatisches Cleanup**: Temporäre Dateien werden sicher gelöscht
+**Was macht doc-scan?** — Erkennt Dokumente (Firma, Typ, Datum) und benennt Dateien intelligent um. Aus `scan001.pdf` wird `2024-01-24_Vodafone_Rechnung_VF-12345.pdf`. Optional mit AI-Unterstützung via Perplexity API.
 
 ---
 
-## 🤖 Features v2.1 - AI-Enhancement
+## Features
 
-### **NEU: Perplexity API Integration**
-- **🚀 Dynamische Dokumentenanalyse** statt statischer Pattern-Matching
-- **🏷️ Bis zu 5 Buzzwords** automatisch aus Dokumentinhalten extrahiert
-- **🎯 Intelligente Absender-Erkennung** für **ALLE Firmen** (nicht nur vordefinierte Liste!)
-- **📊 Confidence-Score** mit automatischem Pattern-Matching Fallback
-- **📅 AI-gestützte Datumsauswahl** - wählt korrektes Briefkopf-Datum aus mehreren Kandidaten
-- **⚙️ Konfigurierbar** über Setup-Wizard oder `~/.doc-scan.json`
-- **🔐 Privacy-First**: API-Key lokal gespeichert, maskierte Ausgabe
+- **AI-gestützte Analyse** — Perplexity API erkennt *alle* Firmen, nicht nur vordefinierte (optional)
+- **OCR** — Gescannte PDFs und Bilder via Tesseract
+- **Multi-Format** — PDF, DOCX, Pages, TXT, PNG, JPG
+- **Batch-Verarbeitung** — `doc-scan ~/Downloads/*.pdf --execute`
+- **Undo** — Letzte Umbenennung rückgängig machen
+- **macOS Integration** — Finder Quick Action (Rechtsklick)
+- **Security** — Input Validation, Path Traversal Protection, API Key Protection
+- **Geburtsdatum-Schutz** — Verhindert Fehlerkennungen bei Briefkopf-Analysen
 
-**Beispiel AI-Output:**
-```
-🤖 AI-Analyse läuft...
-✓ Kategorie: Rechnung (95% Konfidenz)
-✓ Firma: Vodafone GmbH
-✓ Keywords: Mobilfunk, LTE, Datenvolumen, Grundgebühr
-   → 2025-05-15_Vodafone_Mobilfunkrechnung_LTE_RG-2024-987654.pdf
-```
+### Erkennungs-Engine
 
-👉 **[AI-Integration Dokumentation](AI-INTEGRATION.md)** für Details zu Setup, Verwendung und Best Practices
+| Was | Beispiele |
+|-----|-----------|
+| **Absender** | 40+ Firmen (Allianz, Vodafone, Amazon, ...) — mit AI unbegrenzt |
+| **Dokumenttyp** | Rechnung, Vertrag, Bescheid, Mahnung, Kündigung, Kontoauszug, ... |
+| **Datum** | Scanner-Zeitstempel → Briefdatum (OCR) → Erstelldatum (Fallback) |
+| **Referenznummern** | Rechnungs-Nr, Kunden-Nr, Vertrags-Nr, Policen-Nr, Aktenzeichen |
+| **Keywords** | AI extrahiert bis zu 5 Buzzwords aus dem Inhalt |
 
----
+### Unterstützte Formate
 
-## ✨ Features v2.0
-
-### 🔧 **NEU: Konfigurationsmanagement**
-- **~/.doc-scan.json** - Persistente Einstellungen
-- **Interaktiver Setup-Wizard** (`doc-scan --setup`)
-- **Standard-Modus** wählbar (Preview/Execute)
-- **OCR-Konfiguration** (Sprache, Enable/Disable)
-- **Eigene Firmennamen** hinzufügen
-- **CLI überschreibt Config** (flexible Nutzung)
-
-### ⏮️ **NEU: Undo-Funktion**
-- **`doc-scan --undo`** - Letzte Batch-Umbenennung rückgängig machen
-- **Automatisches Tracking** aller Operationen
-- **Batch-Erkennung** (Gruppierung nach Zeit)
-- **Statistiken** mit `--undo-stats`
-
-### 🎨 **NEU: Farbige Terminal-Ausgabe**
-- **Grün:** Erfolg
-- **Rot:** Fehler
-- **Gelb:** Warnungen
-- **Cyan:** Vorschläge
-- **Grau:** Debug-Details (nur --verbose)
-
-### 🔒 **NEU: Security & Validation**
-- **--verbose Flag** für Debug-Output
-- **Standard:** Minimal logging (keine sensiblen Daten)
-- **Filename Validation** (Länge, illegale Zeichen, etc.)
-- **Reservierte Namen** erkennen (CON, PRN, etc.)
+| Format | Methode |
+|--------|---------|
+| PDF | Textextraktion + OCR-Fallback (pdftoppm → Tesseract) |
+| DOCX | mammoth.js |
+| Pages | ZIP-Extraktion |
+| TXT | UTF-8/Latin-1 |
+| PNG / JPG / JPEG | OCR via Tesseract |
+| DOC, XLS/XLSX, PPT/PPTX, Numbers, Keynote, ODT | Dateiname wird beibehalten (kein Text extrahierbar) |
 
 ---
 
-## ✨ Features v1.0 (Basis-Features)
-
-- **📅 Zeitstempel-Erkennung**
-  - Scanner-Zeitstempel beibehalten (`2024-01-24_14-30-45`)
-  - Briefdatum aus OCR extrahieren (DD.MM.YYYY → YYYY-MM-DD)
-  - **Fallback auf Erstelldatum** wenn kein Datum gefunden
-
-- **🏢 Absender-Erkennung**
-  - **Mit AI (empfohlen):** Erkennt **ALLE Firmen** automatisch, nicht nur vordefinierte
-  - **Ohne AI (Fallback):** 40+ bekannte Firmen (Allianz, Vodafone, Amazon, etc.)
-  - Versicherungen, Krankenkassen, Banken, Telekommunikation, Logistik, Online-Händler
-
-- **📝 Dokumenttyp-Erkennung**
-  - Rechnung, Vertrag, Bescheid, Mahnung, Kündigung
-  - Bestellung, Lieferschein, Angebot, Kontoauszug
-  - Rezept, Versicherungspolice
-
-- **🔢 Referenznummern**
-  - Rechnungsnummer, Kundennummer
-  - Vertragsnummer, Policennummer  
-  - Aktenzeichen, Order#
-
-### 📄 Multi-Format Unterstützung
-
-#### ✅ Vollständige Textextraktion
-- **PDF** (auch gescannte mit OCR)
-- **DOCX** (Microsoft Word - neues Format)
-- **Pages** (Apple Pages)
-- **TXT** (Textdateien mit UTF-8/Latin-1)
-- **PNG/JPG/JPEG** (Bilder mit OCR)
-
-#### ⚠️ Limitierte Unterstützung (Dateiname wird beibehalten mit Hinweis)
-- **DOC** (Microsoft Word - altes Format, wird als "unlesbar" markiert)
-- **XLS/XLSX** (Microsoft Excel - kein Text extrahierbar)
-- **PPT/PPTX** (Microsoft PowerPoint - kein Text extrahierbar)
-- **Numbers** (Apple Tabellenkalkulation)
-- **Keynote** (Apple Präsentationen)
-- **ODT/ODS/ODP** (OpenOffice/LibreOffice Dokumente)
-- **RAR/ZIP/7Z** (Archive - kein Textinhalt)
-
-### 🚀 Batch-Verarbeitung
-
-- **Mehrere Dateien gleichzeitig** scannen und umbenennen
-- **Globbing-Support**: `doc-scan *.pdf --execute`
-- Zusammenfassung mit Statistiken
-- Fehlerbehandlung pro Datei
-
-### 🍎 macOS Integration
-
-- **Finder Kontextmenü** (Quick Action)
-- **Keyboard Shortcut** möglich
-- **Benachrichtigungen** mit Sound
-- **Dialoge** zur Bestätigung
-
----
-
-## 🚀 Installation
-
-### Voraussetzungen
+## Installation
 
 ```bash
-# Node.js 18+ installieren
-brew install node
+# Voraussetzungen
+brew install node                       # Node.js 18+
+brew install tesseract tesseract-lang   # OCR (optional)
 
-# OCR (optional, für gescannte PDFs/Bilder)
-brew install tesseract tesseract-lang
-```
-
-### CLI installieren
-
-```bash
-# Repository klonen
+# Installieren
 git clone https://github.com/AndreasDietzel/document-scanner.git
 cd document-scanner
-
-# Dependencies installieren
 npm install
-
-# Build ausführen
 npm run build
-
-# Global installieren (macht doc-scan verfügbar)
-npm link
+npm link                                # macht "doc-scan" global verfügbar
 ```
 
 **Test:**
 ```bash
 doc-scan --help
-# Sollte die Hilfe anzeigen
 ```
 
-### 🤖 AI-Integration einrichten (optional)
+### AI einrichten (optional)
 
 ```bash
-# 1. Perplexity API-Key besorgen
-# → https://www.perplexity.ai/settings/api
-
-# 2. Setup-Wizard starten
 doc-scan --setup
-
-# 3. Bei "AI-Enhancement aktivieren?" → Ja wählen
-# 4. API-Key eingeben (wird maskiert angezeigt)
+# → "AI-Enhancement aktivieren?" → Ja
+# → Perplexity API-Key eingeben (https://www.perplexity.ai/settings/api)
 ```
 
-**Manuelle Konfiguration:**
-```bash
-# ~/.doc-scan.json bearbeiten
+Oder manuell in `~/.doc-scan.json`:
+```json
 {
   "enableAI": true,
   "perplexityApiKey": "pplx-your-key-here"
 }
 ```
 
-👉 **Mehr Details:** [AI-INTEGRATION.md](AI-INTEGRATION.md)
-
-### macOS Quick Action einrichten
-
-**Detaillierte Anleitung:** Siehe [MACOS-KONTEXTMENU.md](./MACOS-KONTEXTMENU.md)
-
-**Quick-Setup:**
-1. Automator öffnen → "Schnellaktion" wählen
-2. "Shell-Script ausführen" hinzufügen
-3. Script einfügen (siehe Anleitung)
-4. Als "🔍 Dokument scannen" speichern
-5. Im Finder: Rechtsklick → Dienste → 🔍 Dokument scannen
+Mehr dazu: [AI-INTEGRATION.md](AI-INTEGRATION.md)
 
 ---
 
-## 🎯 Quick Start (v2.0)
-
-### Erste Schritte
+## Verwendung
 
 ```bash
-# 1️⃣ Setup-Wizard ausführen (erstmalig)
-doc-scan --setup
+# Vorschau (Standard) — analysiert ohne Umbenennung
+doc-scan rechnung.pdf
 
-# 2️⃣ Einzelne Datei analysieren (Vorschau)
-doc-scan ~/Downloads/rechnung.pdf
+# Umbenennen
+doc-scan rechnung.pdf --execute
 
-# 3️⃣ Einzelne Datei umbenennen
-doc-scan ~/Downloads/rechnung.pdf --execute
+# Batch
+doc-scan ~/Downloads/*.pdf --execute
 
-# 4️⃣ Batch-Verarbeitung mit Kategorisierung
-doc-scan ~/Downloads/*.pdf --execute --verbose
+# Verbose Debug-Ausgabe
+doc-scan rechnung.pdf --preview --verbose
 
-# 5️⃣ Letzte Aktion rückgängig machen
-doc-scan --undo
-```
-
-### Neue v2.0 Befehle
-
-```bash
-# Setup-Wizard ausführen
-doc-scan --setup
-
-# Undo letzte Batch-Umbenennung
+# Undo
 doc-scan --undo
 
-# Undo-Statistiken anzeigen
-doc-scan --undo-stats
-
-# Mit verbose Output (zeigt Kategorien)
-doc-scan file.pdf --preview --verbose
+# Setup-Wizard
+doc-scan --setup
 ```
 
+### Alle Flags
+
+| Flag | Beschreibung |
+|------|-------------|
+| `--preview` | Analysiert ohne Umbenennung (Standard) |
+| `--execute` | Benennt automatisch um |
+| `--silent` | Keine macOS-Benachrichtigungen |
+| `--verbose` | Detaillierte Debug-Ausgabe |
+| `--setup` | Interaktiver Setup-Wizard |
+| `--undo` | Letzte Batch-Umbenennung rückgängig machen |
+| `--undo-stats` | Undo-Statistiken anzeigen |
+| `--help` | Hilfe |
+
 ---
 
-## 📖 Verwendung
+## Beispiele
 
-Siehe [MACOS-KONTEXTMENU.md](MACOS-KONTEXTMENU.md) für detaillierte Anleitung.
+### Umbenennung
 
-**Kurzfassung:**
-1. Automator öffnen → Schnellaktion erstellen
-2. Shell-Script hinzufügen mit `doc-scan` Aufruf
-3. Speichern als "Dokument scannen und umbenennen"
-4. **Rechtsklick im Finder** → Quick Action verwenden
+| Vorher | Nachher | Erkannt |
+|--------|---------|---------|
+| `scan001.pdf` | `2024-01-24_Vodafone_Rechnung_VF-12345.pdf` | Datum, Firma, Typ, Referenz-Nr |
+| `document.docx` | `2023-12-31_Allianz_Vertrag_POL-9876.docx` | Datum, Firma, Vertrag, Policen-Nr |
+| `IMG_0123.jpg` | `2025-03-15_Techniker_Krankenkasse_Bescheid.jpg` | Datum, Firma, Typ |
 
----
+### AI-Analyse Output
 
-## 📖 Verwendung
-
-### Command Line
-
-```bash
-# Einzelne Datei (mit Dialog)
-doc-scan document.pdf
-
-# Vorschau ohne Umbenennung
-doc-scan invoice.pdf --preview
-
-# Automatisch umbenennen (ohne Dialog)
-doc-scan scan123.pdf --execute
-
-# Mehrere Dateien
-doc-scan file1.pdf file2.pdf file3.pdf --execute
-
-# Alle PDFs im Ordner
-doc-scan ~/Downloads/*.pdf --preview
-
-# Vollautomatisch und still
-doc-scan document.pdf --execute --silent
 ```
-
-### Finder Kontextmenü
-
-1. Datei(en) im Finder auswählen
-2. Rechtsklick → **Schnellaktionen** → **"Dokument scannen und umbenennen"**
-3. Dialog erscheint mit Vorschlag
-4. "Umbenennen" klicken
-
-### Keyboard Shortcut
-
-Optional: **⌘⌥S** zuweisen
-- Systemeinstellungen → Tastatur → Kurzbefehle → Dienste
-- "Dokument scannen und umbenennen" → Shortcut hinzufügen
-
----
-
-## 🎯 Beispiele
-
-### Umbenennung anhand von Briefkopf
-
-| Vorher | Nachher | Erkannte Inhalte |
-|--------|---------|------------------|
-| `scan001.pdf` | `2024-01-24_Vodafone_Rechnung_VF-12345.pdf` | Datum: 24.01.2024, Firma: Vodafone, Typ: Rechnung, Nr: VF-12345 |
-| `document.docx` | `2023-12-31_Allianz_Vertrag_POL-9876.docx` | Datum: 31.12.2023, Firma: Allianz, Typ: Vertrag, Policen-Nr: POL-9876 |
-| `IMG_0123.jpg` | `2025-03-15_Techniker_Krankenkasse_Bescheid.jpg` | Datum: 15.03.2025, Firma: TK, Typ: Bescheid |
-
-### Zeitstempel-Logik (Priorität)
-
-1. **Scanner-Zeitstempel** (falls vorhanden)
-   ```
-   2024-01-24_14-30-45.pdf → 2024-01-24_14-30-45_Vodafone_Rechnung.pdf
-   ```
-
-2. **Briefdatum aus OCR** (aus ersten 1000 Zeichen)
-   ```
-   scan123.pdf (enthält "Berlin, 24.01.2024")
-   → 2024-01-24_DHL_Lieferschein.pdf
-   ```
-
-3. **Erstelldatum der Datei** (Fallback)
-   ```
-   document.pdf (erstellt am 15.03.2024, kein Datum im Text)
-   → 2024-03-15_Amazon_Rechnung.pdf
-   ```
+🤖 AI-Analyse läuft...
+✓ Dokumenttyp: Rechnung (95% Konfidenz)
+✓ Firma: Vodafone GmbH
+✓ Keywords: Mobilfunk, LTE, Datenvolumen, Grundgebühr
+   → 2025-05-15_Vodafone_Mobilfunkrechnung_LTE_RG-2024-987654.pdf
+```
 
 ### Batch-Verarbeitung
 
 ```bash
-# Alle PDFs im Downloads analysieren
 doc-scan ~/Downloads/*.pdf --preview
 
-# Ausgabe:
 # ============================================================
 # 📊 ZUSAMMENFASSUNG - 15 Dateien verarbeitet
 # ============================================================
-# 
 # ✅ Erfolgreich: 15
 # 📝 Umbenannt: 0
 # ⏭️  Übersprungen: 3
 # ❌ Fehler: 0
-# 
-# Vorgeschlagene Umbenennungen:
-#   • scan001.pdf
-#     → 2024-01-24_Vodafone_Rechnung_VF-12345.pdf
-#   • IMG_0456.jpg
-#     → 2024-02-15_Allianz_Vertrag.jpg
-#   ...
-
-# Tatsächlich umbenennen
-doc-scan ~/Downloads/*.pdf --execute
 ```
 
 ---
 
-## 🔧 Konfiguration
+## Konfiguration
 
-### Quick Action anpassen
+Die Konfiguration liegt in `~/.doc-scan.json` und wird über `doc-scan --setup` erstellt.
 
-**Automatisch umbenennen (ohne Dialog):**
-
-Bearbeite das Automator Shell-Script:
-```bash
-"$NODE_PATH" "$DOC_SCAN" "$file" --execute
+```json
+{
+  "defaultMode": "preview",
+  "enableOCR": true,
+  "ocrLanguage": "deu",
+  "customCompanies": ["Meine Firma GmbH"],
+  "enableAI": false,
+  "perplexityApiKey": "",
+  "aiConfidenceThreshold": 0.5,
+  "birthDate": "01.01.1990"
+}
 ```
 
-**Keine Benachrichtigungen:**
-```bash
-"$NODE_PATH" "$DOC_SCAN" "$file" --execute --silent
-```
-
-### Eigene Firmen/Muster hinzufügen
-
-Bearbeite `src/cli.ts`:
-
-```typescript
-// Zeile 127-142: Firmen-Liste erweitern
-const companies = [
-  'Meine Firma',
-  'Anderer Absender',
-  // ...
-];
-
-// Zeile 165-173: Dokumenttypen erweitern
-const docTypes: { [key: string]: string } = {
-  'Mein Dokumenttyp': 'MeinTyp',
-  // ...
-};
-```
-
-Dann neu bauen:
-```bash
-npm run build
-```
+| Feld | Beschreibung |
+|------|-------------|
+| `defaultMode` | `preview` oder `execute` |
+| `enableOCR` | OCR für gescannte PDFs/Bilder |
+| `ocrLanguage` | Tesseract-Sprache (`deu`, `eng`, ...) |
+| `customCompanies` | Eigene Firmennamen zur Erkennung |
+| `enableAI` | Perplexity AI aktivieren |
+| `perplexityApiKey` | API-Key (lokal gespeichert, nie committed) |
+| `aiConfidenceThreshold` | Minimum-Konfidenz für AI-Ergebnisse (0-1) |
+| `birthDate` | Geburtsdatum — wird bei Datumserkennung ignoriert |
 
 ---
 
-## 🐛 Troubleshooting
+## macOS Finder Integration
 
-### "doc-scan: command not found"
+Quick Action einrichten für Rechtsklick → "Dokument scannen":
 
-**Problem:** CLI nicht global installiert.
+1. Automator öffnen → **Schnellaktion** erstellen
+2. "Shell-Script ausführen" hinzufügen
+3. Script einfügen (siehe [MACOS-KONTEXTMENU.md](MACOS-KONTEXTMENU.md))
+4. Als "🔍 Dokument scannen" speichern
+5. **Fertig** — Rechtsklick auf Dateien → Schnellaktionen → 🔍 Dokument scannen
 
-**Lösung:**
-```bash
-cd /pfad/zum/repo
-npm link
-```
-
-### Quick Action erscheint nicht
-
-**Lösung 1:** Systemeinstellungen prüfen
-- Systemeinstellungen → Erweiterungen → Finder
-- "Dokument scannen und umbenennen" aktivieren
-
-**Lösung 2:** Service neu erstellen
-- Automator öffnen
-- Service aus `~/Library/Services/` öffnen und neu speichern
-
-### OCR funktioniert nicht
-
-**Installation prüfen:**
-```bash
-tesseract --version
-# Sollte Version 5+ anzeigen
-
-# Deutsche Sprache installieren
-brew install tesseract-lang
-```
-
-**Test:**
-```bash
-tesseract --list-langs
-# Sollte 'deu' enthalten
-```
-
-### "Keine Textinhalte gefunden"
-
-**Mögliche Ursachen:**
-- Bild ohne Text (leere Seite)
-- OCR nicht installiert
-- Datei beschädigt
-
-**Debugging:**
-```bash
-# Detaillierte Ausgabe
-doc-scan datei.pdf --silent  # Zeigt Console-Output
-```
+Optional: Keyboard Shortcut zuweisen unter Systemeinstellungen → Tastatur → Kurzbefehle → Dienste.
 
 ---
 
-## 🏗️ Entwicklung
-
-### Projekt-Struktur
+## Projekt-Struktur
 
 ```
 document-scanner/
 ├── src/
-│   ├── cli.ts              # Haupt-CLI Tool
+│   ├── cli.ts              # Haupt-CLI
 │   ├── config.ts           # Konfigurationsmanagement
-│   ├── categories.ts       # Firmenkategorisierung
-│   ├── security.ts         # Security & Validierung
 │   ├── ai-analysis.ts      # Perplexity AI Integration
+│   ├── security.ts         # Security & Validierung
 │   ├── setup.ts            # Setup-Wizard
 │   └── undo.ts             # Undo-Funktionalität
-├── build/                  # Kompilierte JavaScript-Dateien
+├── build/                  # Kompilierte JS-Dateien
 ├── test-data/              # Testdateien
 ├── package.json
 ├── tsconfig.json
-├── README.md
-├── MACOS-KONTEXTMENU.md    # macOS Kontextmenü Setup
-├── AI-INTEGRATION.md       # AI Setup & Verwendung
-├── SECURITY.md             # Security Best Practices
 └── LICENSE
 ```
 
-### Build & Test
+### Entwicklung
 
 ```bash
-# TypeScript kompilieren
-npm run build
-
-# Watch-Modus für Entwicklung
-npm run watch
-
-# Lokaler Test (ohne Installation)
-node build/cli.js test-data/sample.pdf --preview
-```
-
-### Tests hinzufügen
-
-```bash
-# Testdateien erstellen
-mkdir -p test-data
-echo "Test content" > test-data/test.txt
-
-# Testen
-doc-scan test-data/test.txt --preview
+npm run build       # TypeScript kompilieren
+npm run watch       # Watch-Modus
+node build/cli.js test-data/test-rechnung.txt --preview   # Lokaler Test
 ```
 
 ---
 
-## 📚 Weiterführende Dokumentation
+## Troubleshooting
 
-- [MACOS-KONTEXTMENU.md](MACOS-KONTEXTMENU.md) - Automator Setup & Troubleshooting
-- [AI-INTEGRATION.md](AI-INTEGRATION.md) - Perplexity AI Setup & Verwendung
-- [SECURITY.md](SECURITY.md) - Security Best Practices & ISO 25010
-- [CHANGELOG.md](CHANGELOG.md) - Versionshistorie
-- [LICENSE](LICENSE) - MIT Lizenz
+**`doc-scan: command not found`** — `npm link` im Repo-Verzeichnis ausführen.
 
----
+**Quick Action erscheint nicht** — Systemeinstellungen → Erweiterungen → Finder → aktivieren.
 
-## 🤝 Beitragen
+**OCR funktioniert nicht** — `brew install tesseract tesseract-lang`, dann `tesseract --list-langs` prüfen (muss `deu` enthalten).
 
-Contributions sind willkommen! Bitte:
-
-1. Fork das Repository
-2. Feature-Branch erstellen (`git checkout -b feature/AmazingFeature`)
-3. Änderungen committen (`git commit -m 'Add AmazingFeature'`)
-4. Branch pushen (`git push origin feature/AmazingFeature`)
-5. Pull Request öffnen
-
-### Ideen für Contributions
-
-- [ ] Weitere Firmen/Absender hinzufügen
-- [ ] Zusätzliche Dokumenttypen erkennen
-- [ ] GUI-Version mit Electron
-- [ ] Windows/Linux Unterstützung
-- [ ] Konfigurationsdatei (`~/.doc-scan.json`)
-- [ ] Plugin-System für eigene Muster
+**"Keine Textinhalte gefunden"** — OCR nicht installiert, Datei beschädigt, oder Bild ohne Text. Debug mit `doc-scan datei.pdf --verbose`.
 
 ---
 
-## 📄 Lizenz
+## Dokumentation
 
-MIT License - siehe [LICENSE](LICENSE)
-
----
-
-## 👤 Autor
-
-**Andreas Dietzel**
-- GitHub: [@AndreasDietzel](https://github.com/AndreasDietzel)
+- [AI-INTEGRATION.md](AI-INTEGRATION.md) — Perplexity AI Setup & Verwendung
+- [MACOS-KONTEXTMENU.md](MACOS-KONTEXTMENU.md) — Automator Quick Action Setup
+- [SECURITY.md](SECURITY.md) — Security & ISO 25010
+- [CHANGELOG.md](CHANGELOG.md) — Versionshistorie
 
 ---
 
-## 🙏 Danksagungen
+## Lizenz
 
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) - OCR Engine
-- [pdf-parse](https://www.npmjs.com/package/pdf-parse) - PDF Text Extraction
-- [mammoth](https://www.npmjs.com/package/mammoth) - DOCX Parsing
+MIT — siehe [LICENSE](LICENSE)
 
----
-
-## ⭐ Star History
-
-Wenn dir dieses Projekt gefällt, gib ihm einen Stern auf GitHub!
+**Andreas Dietzel** — [@AndreasDietzel](https://github.com/AndreasDietzel)

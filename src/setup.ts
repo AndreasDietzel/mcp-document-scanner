@@ -72,12 +72,6 @@ export async function runSetupWizard(): Promise<void> {
     },
     {
       type: 'confirm',
-      name: 'enableCategories',
-      message: 'Automatische Kategorisierung aktivieren? (Sortiert nach Branchen)',
-      initial: false
-    },
-    {
-      type: 'confirm',
       name: 'silent',
       message: 'macOS-Benachrichtigungen deaktivieren?',
       initial: false
@@ -106,7 +100,6 @@ export async function runSetupWizard(): Promise<void> {
     perplexityApiKey: response.perplexityApiKey || undefined,
     enableOCR: response.enableOCR,
     ocrLanguage: response.ocrLanguage || 'deu',
-    enableCategories: response.enableCategories,
     silent: response.silent,
     customCompanies: response.customCompanies
       ? response.customCompanies.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
@@ -131,7 +124,6 @@ export async function runSetupWizard(): Promise<void> {
     if (config.enableOCR) {
       console.log(chalk.cyan(`  OCR-Sprache:          ${config.ocrLanguage}`));
     }
-    console.log(chalk.cyan(`  Kategorisierung:      ${config.enableCategories ? 'Ja' : 'Nein'}`));
     console.log(chalk.cyan(`  Benachrichtigungen:   ${config.silent ? 'Aus' : 'An'}`));
     if (config.customCompanies.length > 0) {
       console.log(chalk.cyan(`  Eigene Firmen:        ${config.customCompanies.join(', ')}`));

@@ -1,6 +1,6 @@
 {
   "name": "document-scanner",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Intelligent document scanning and renaming CLI with AI support (Perplexity), OCR, and ISO 25010 security for macOS",
   "type": "module",
   "main": "build/cli.js",

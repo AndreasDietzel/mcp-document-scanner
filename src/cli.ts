@@ -13,7 +13,6 @@ import AdmZip from "adm-zip";
 import { execSync } from "child_process";
 import chalk from "chalk";
 import { loadConfig, mergeWithCLI, ScanConfig, configExists, getConfigPath } from './config.js';
-import { getCategoryForCompany, CATEGORIES, CategoryInfo } from './categories.js';
 import { recordRename, undoLastBatch, getUndoStats } from './undo.js';
 import { runSetupWizard } from './setup.js';
 import { analyzeDocumentWithAI, buildFilenameFromAI, isAIEnabled, selectDocumentDateWithAI } from './ai-analysis.js';
@@ -33,9 +32,6 @@ const pdfParse = require("pdf-parse");
 // Global verbose flag
 let VERBOSE = false;
 let CONFIG: ScanConfig;
-
-// Track detected company for category assignment
-let DETECTED_COMPANY: string | null = null;
 
 // Import shared utilities from main index
 function normalizeUnicode(str: string): string {
@@ -299,27 +295,7 @@ async function extractText(filePath: string, config: ScanConfig): Promise<string
   return "";
 }
 
-/**
- * Extract year from file path (e.g., /Documents/2026/file.pdf → 2026)
- * Files stay in their year folder, no cross-year movement
- */
-function extractYearFromPath(filePath: string): string | null {
-  const yearMatch = filePath.match(/\/(\d{4})\//);
-  return yearMatch ? yearMatch[1] : null;
-}
 
-/**
- * Move file to appropriate category folder within same year
- * Example: /Documents/2026/file.pdf → /Documents/2026/01_Finanzen/file.pdf
- */
-// Function disabled/removed as requested
-function moveToCategory(
-  currentPath: string,
-  companyOrCategoryKey: string | null,
-  verbose: boolean = false
-): string | null {
-  return null;
-}
 
 // Intelligente Namensvorschläge (mit AI oder Fallback auf Pattern-Matching)
 async function generateSmartFilename(text: string, originalName: string, filePath: string): Promise<string> {
@@ -344,14 +320,8 @@ async function generateSmartFilename(text: string, originalName: string, filePat
       if (aiAnalysis && aiAnalysis.confidence >= (CONFIG.aiConfidenceThreshold || 0.5)) {
         const aiFilename = buildFilenameFromAI(aiAnalysis, timestamp, ext);
         
-        // Store detected company for category assignment
-        DETECTED_COMPANY = aiAnalysis.company || null;
-        
         if (VERBOSE) {
           console.log(chalk.magenta(`🤖 AI-Vorschlag (${(aiAnalysis.confidence * 100).toFixed(0)}% Konfidenz): ${aiFilename}`));
-          if (aiAnalysis.category && CONFIG.enableCategories) {
-            console.log(chalk.magenta(`📁 AI-Kategorie: ${aiAnalysis.category}`));
-          }
         }
         
         return aiFilename;
@@ -487,17 +457,8 @@ function generateSmartFilenamePatternBased(
   for (const company of companies) {
     if (text.includes(company)) {
       detectedCompany = company;
-      DETECTED_COMPANY = company; // Store globally for category assignment
       suggestions.push(company.replace(/\s+/g, '_'));
       break;
-    }
-  }
-  
-  // Opt-04: Add category detection
-  if (detectedCompany && CONFIG?.enableCategories) {
-    const category = getCategoryForCompany(detectedCompany);
-    if (category && VERBOSE) {
-      console.log(chalk.magenta(`📁 Kategorie: ${category.name} (${category.folder})`));
     }
   }
   
@@ -621,9 +582,6 @@ async function processFile(
   options: { preview: boolean; execute: boolean; silent: boolean }
 ): Promise<{ success: boolean; renamed: boolean; oldName: string; newName: string; error?: string }> {
   const { preview, execute, silent } = options;
-  
-  // Reset detected company for each file
-  DETECTED_COMPANY = null;
   
   // Security Validierung
   const fileValidation = validateFilePath(filePath);
@@ -784,12 +742,7 @@ async function processFile(
         console.log(chalk.gray(`   Nach: ${newPath}`));
       }
       
-      // Move to category folder - DISABLED as requested
-      // The logic has been removed to keep the tool simple
-      // and avoid creating unwanted folder structures.
-      let finalPath = newPath;
-      
-      return { success: true, renamed: true, oldName: originalName, newName: path.basename(finalPath) };
+      return { success: true, renamed: true, oldName: originalName, newName: path.basename(newPath) };
     } catch (error) {
       console.error(chalk.red(`\u274c Umbenennung fehlgeschlagen:`), VERBOSE ? error : '');
       return { success: false, renamed: false, oldName: originalName, newName: suggestion, error: 'Umbenennung fehlgeschlagen' };
@@ -812,7 +765,7 @@ async function main() {
   
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     console.log(`
-${chalk.bold.cyan('Document Scanner CLI v2.3.0')}
+${chalk.bold.cyan('Document Scanner CLI v2.4.1')}
 
 ${chalk.bold('Verwendung:')}
   doc-scan <datei> [<datei2> ...]   Analysiert eine oder mehrere Dateien
@@ -926,9 +879,6 @@ ${chalk.bold('Beispiele:')}
   
   if (VERBOSE) {
     console.log(chalk.gray('🔧 Verbose-Modus aktiviert'));
-    if (CONFIG.enableCategories) {
-      console.log(chalk.gray('📁 Kategorisierung aktiviert'));
-    }
   }
   
   // Sammle alle Datei-Argumente (keine Flags)
