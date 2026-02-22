@@ -1,6 +1,6 @@
 /**
- * Perplexity AI Client for Document Analysis
- * Uses Perplexity API to intelligently extract document metadata
+ * AI Client for Document Analysis
+ * Supports Perplexity API and Anthropic Claude API
  */
 
 import chalk from 'chalk';
@@ -15,82 +15,166 @@ export interface AIDocumentAnalysis {
   rawResponse?: string;
 }
 
+export type AIProvider = 'perplexity' | 'claude';
+
 export interface PerplexityConfig {
+  provider?: 'perplexity';
   apiKey: string;
   model?: string;
   maxTokens?: number;
   temperature?: number;
 }
 
-const DEFAULT_MODEL = 'sonar';
-const API_BASE_URL = 'https://api.perplexity.ai';
+export interface ClaudeConfig {
+  provider: 'claude';
+  apiKey: string;
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export type AIConfig = PerplexityConfig | ClaudeConfig;
+
+// Perplexity defaults
+const PERPLEXITY_DEFAULT_MODEL = 'sonar';
+const PERPLEXITY_API_URL = 'https://api.perplexity.ai';
+
+// Claude defaults
+const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_API_URL = 'https://api.anthropic.com';
+const CLAUDE_API_VERSION = '2023-06-01';
 
 /**
- * Analyze document text with Perplexity AI
+ * Call Perplexity API (OpenAI-compatible format)
+ */
+async function callPerplexityAPI(
+  systemPrompt: string,
+  userPrompt: string,
+  config: PerplexityConfig,
+  maxTokens: number
+): Promise<string | null> {
+  const response = await fetch(`${PERPLEXITY_API_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: config.model || PERPLEXITY_DEFAULT_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      max_tokens: maxTokens,
+      temperature: config.temperature || 0.2,
+      top_p: 0.9,
+      stream: false
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Perplexity API ${response.status}: ${error}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || null;
+}
+
+/**
+ * Call Anthropic Claude API (Messages API format)
+ */
+async function callClaudeAPI(
+  systemPrompt: string,
+  userPrompt: string,
+  config: ClaudeConfig,
+  maxTokens: number
+): Promise<string | null> {
+  const response = await fetch(`${CLAUDE_API_URL}/v1/messages`, {
+    method: 'POST',
+    headers: {
+      'x-api-key': config.apiKey,
+      'anthropic-version': CLAUDE_API_VERSION,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: config.model || CLAUDE_DEFAULT_MODEL,
+      system: systemPrompt,
+      messages: [
+        { role: 'user', content: userPrompt }
+      ],
+      max_tokens: maxTokens,
+      temperature: config.temperature || 0.2
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Claude API ${response.status}: ${error}`);
+  }
+
+  const data = await response.json();
+  // Claude returns content as array of content blocks
+  const textBlock = data.content?.find((b: any) => b.type === 'text');
+  return textBlock?.text || null;
+}
+
+/**
+ * Unified AI API call - dispatches to the correct provider
+ */
+async function callAI(
+  systemPrompt: string,
+  userPrompt: string,
+  config: AIConfig,
+  maxTokens: number
+): Promise<string | null> {
+  if (config.provider === 'claude') {
+    return callClaudeAPI(systemPrompt, userPrompt, config as ClaudeConfig, maxTokens);
+  }
+  return callPerplexityAPI(systemPrompt, userPrompt, config as PerplexityConfig, maxTokens);
+}
+
+/**
+ * Get provider display name
+ */
+function getProviderName(config: AIConfig): string {
+  return config.provider === 'claude' ? 'Claude' : 'Perplexity';
+}
+
+/**
+ * Analyze document text with AI (Perplexity or Claude)
  */
 export async function analyzeDocumentWithAI(
   text: string,
-  config: PerplexityConfig,
+  config: AIConfig,
   verbose: boolean = false
 ): Promise<AIDocumentAnalysis | null> {
   
   if (!config.apiKey || config.apiKey.length < 10) {
     if (verbose) {
-      console.log(chalk.yellow('⚠️  Kein Perplexity API-Key konfiguriert'));
+      console.log(chalk.yellow(`⚠️  Kein ${getProviderName(config)} API-Key konfiguriert`));
     }
     return null;
   }
+
+  const providerName = getProviderName(config);
 
   try {
     // Truncate text if too long (keep first 2000 chars for performance)
     const truncatedText = text.substring(0, 2000);
     
     const prompt = buildAnalysisPrompt(truncatedText);
+    const systemPrompt = 'Du bist ein Experte für Dokumentenanalyse. Deine Aufgabe ist es, Dokumente zu analysieren und strukturierte Metadaten zu extrahieren. Antworte IMMER im JSON-Format.';
     
     if (verbose) {
-      console.log(chalk.gray('🤖 Perplexity AI Analyse läuft...'));
+      console.log(chalk.gray(`🤖 ${providerName} AI Analyse läuft...`));
     }
 
-    const response = await fetch(`${API_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: config.model || DEFAULT_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: 'Du bist ein Experte für Dokumentenanalyse. Deine Aufgabe ist es, Dokumente zu analysieren und strukturierte Metadaten zu extrahieren. Antworte IMMER im JSON-Format.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: config.maxTokens || 500,
-        temperature: config.temperature || 0.2,
-        top_p: 0.9,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      if (verbose) {
-        console.log(chalk.red(`❌ Perplexity API Fehler: ${response.status}`));
-        console.log(chalk.gray(error));
-      }
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = await callAI(systemPrompt, prompt, config, config.maxTokens || 500);
 
     if (!content) {
       if (verbose) {
-        console.log(chalk.yellow('⚠️  Keine Antwort von Perplexity AI'));
+        console.log(chalk.yellow(`⚠️  Keine Antwort von ${providerName} AI`));
       }
       return null;
     }
@@ -111,7 +195,7 @@ export async function analyzeDocumentWithAI(
 
   } catch (error) {
     if (verbose) {
-      console.log(chalk.red('❌ Fehler bei AI-Analyse:'), error instanceof Error ? error.message : error);
+      console.log(chalk.red(`❌ Fehler bei ${providerName} AI-Analyse:`), error instanceof Error ? error.message : error);
     }
     return null;
   }
@@ -262,7 +346,7 @@ export function buildFilenameFromAI(
 /**
  * Check if AI analysis is enabled and configured
  */
-export function isAIEnabled(config: PerplexityConfig | undefined): boolean {
+export function isAIEnabled(config: AIConfig | undefined): boolean {
   return !!(config?.apiKey && config.apiKey.length >= 10);
 }
 
@@ -272,7 +356,7 @@ export function isAIEnabled(config: PerplexityConfig | undefined): boolean {
 export async function selectDocumentDateWithAI(
   text: string,
   dates: string[],
-  config: PerplexityConfig,
+  config: AIConfig,
   verbose: boolean = false
 ): Promise<string | null> {
   
@@ -288,11 +372,14 @@ export async function selectDocumentDateWithAI(
     return dates[0];
   }
 
+  const providerName = getProviderName(config);
+
   try {
     const truncatedText = text.substring(0, 1500);
     const datesList = dates.join(', ');
     
-    const prompt = `Analysiere dieses Dokument und identifiziere das BRIEFKOPF-DATUM (Datum des Schreibens/der Rechnung).
+    const systemPrompt = 'Du bist ein Experte für Dokumentenanalyse. Antworte nur mit dem Datum im Format DD.MM.YYYY.';
+    const userPrompt = `Analysiere dieses Dokument und identifiziere das BRIEFKOPF-DATUM (Datum des Schreibens/der Rechnung).
 
 DOKUMENT:
 ${truncatedText}
@@ -307,47 +394,17 @@ ANTWORT-FORMAT (NUR das Datum im Format DD.MM.YYYY, keine zusätzlichen Texte):
 DD.MM.YYYY`;
 
     if (verbose) {
-      console.log(chalk.gray(`🤖 KI prüft ${dates.length} gefundene Daten...`));
+      console.log(chalk.gray(`🤖 ${providerName} KI prüft ${dates.length} gefundene Daten...`));
     }
 
-    const response = await fetch(`${API_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: config.model || DEFAULT_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: 'Du bist ein Experte für Dokumentenanalyse. Antworte nur mit dem Datum im Format DD.MM.YYYY.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 50,
-        temperature: 0.1,
-        top_p: 0.9,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
+    const content = await callAI(systemPrompt, userPrompt, config, 50);
 
     if (!content) {
       return null;
     }
 
     // Extract date from response
-    const dateMatch = content.match(/(\d{2}\.\d{2}\.\d{4})/);
+    const dateMatch = content.trim().match(/(\d{2}\.\d{2}\.\d{4})/);
     if (dateMatch) {
       const selectedDate = dateMatch[1];
       if (dates.includes(selectedDate)) {

@@ -19,8 +19,11 @@ export interface ScanConfig {
   verbose: boolean;
   // AI Enhancement
   enableAI: boolean;
+  aiProvider?: 'perplexity' | 'claude'; // AI provider selection
   perplexityApiKey?: string;
   perplexityModel?: string;
+  claudeApiKey?: string;
+  claudeModel?: string;
   aiConfidenceThreshold?: number; // Minimum confidence to use AI results
   // Personal Information (treated confidentially like API key)
   birthDate?: string; // Format: DD.MM.YYYY - prevents misidentification as document date
@@ -39,8 +42,11 @@ export const DEFAULT_CONFIG: ScanConfig = {
   verbose: false,
   // AI defaults
   enableAI: false,
+  aiProvider: 'perplexity',
   perplexityApiKey: undefined,
   perplexityModel: 'sonar', // Updated model name (Feb 2026)
+  claudeApiKey: undefined,
+  claudeModel: 'claude-sonnet-4-20250514',
   aiConfidenceThreshold: 0.5
 };
 

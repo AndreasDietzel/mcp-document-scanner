@@ -15,7 +15,7 @@ import chalk from "chalk";
 import { loadConfig, mergeWithCLI, ScanConfig, configExists, getConfigPath } from './config.js';
 import { recordRename, undoLastBatch, getUndoStats } from './undo.js';
 import { runSetupWizard } from './setup.js';
-import { analyzeDocumentWithAI, buildFilenameFromAI, isAIEnabled, selectDocumentDateWithAI } from './ai-analysis.js';
+import { analyzeDocumentWithAI, buildFilenameFromAI, isAIEnabled, selectDocumentDateWithAI, AIConfig } from './ai-analysis.js';
 import {
   validateFilePath,
   sanitizeFilename as secSanitizeFilename,
@@ -28,6 +28,28 @@ import {
 
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
+
+/**
+ * Build AIConfig from ScanConfig based on selected provider
+ */
+function getAIConfig(config: ScanConfig): AIConfig | null {
+  const provider = config.aiProvider || 'perplexity';
+  if (provider === 'claude' && config.claudeApiKey) {
+    return {
+      provider: 'claude',
+      apiKey: config.claudeApiKey,
+      model: config.claudeModel,
+    };
+  }
+  if (config.perplexityApiKey) {
+    return {
+      provider: 'perplexity',
+      apiKey: config.perplexityApiKey,
+      model: config.perplexityModel,
+    };
+  }
+  return null;
+}
 
 // Global verbose flag
 let VERBOSE = false;
@@ -400,15 +422,12 @@ async function generateSmartFilename(text: string, originalName: string, filePat
   const timestamp = await extractTimestamp(originalName, filePath, text);
   
   // Try AI-based analysis first if enabled
-  if (CONFIG?.enableAI && CONFIG.perplexityApiKey) {
+  const aiConfig = CONFIG ? getAIConfig(CONFIG) : null;
+  if (CONFIG?.enableAI && aiConfig) {
     try {
       const aiAnalysis = await analyzeDocumentWithAI(
         text,
-        {
-          apiKey: CONFIG.perplexityApiKey,
-          model: CONFIG.perplexityModel,
-          temperature: 0.2
-        },
+        { ...aiConfig, temperature: 0.2 },
         VERBOSE
       );
       
@@ -466,15 +485,13 @@ async function extractTimestamp(originalName: string, filePath: string, text: st
   }
   
   // If multiple dates found and AI enabled, ask AI to choose the best one
-  if (foundDates.length > 1 && CONFIG?.enableAI && CONFIG?.perplexityApiKey) {
+  const dateAiConfig = CONFIG ? getAIConfig(CONFIG) : null;
+  if (foundDates.length > 1 && CONFIG?.enableAI && dateAiConfig) {
     try {
       const aiSelectedDate = await selectDocumentDateWithAI(
         text,
         foundDates,
-        {
-          apiKey: CONFIG.perplexityApiKey,
-          model: CONFIG.perplexityModel
-        },
+        dateAiConfig,
         VERBOSE
       );
       
@@ -938,12 +955,15 @@ ${chalk.bold('Beispiele:')}
   }
   
   // Security: Validate API key if AI is enabled
-  if (CONFIG.enableAI && CONFIG.perplexityApiKey) {
-    const keyValidation = validateApiKey(CONFIG.perplexityApiKey);
-    if (!keyValidation.valid) {
-      console.error(chalk.red(`❌ Security: API-Key ungültig - ${keyValidation.error}`));
-      console.log(chalk.yellow('💡 Führe --setup aus, um API-Key neu zu konfigurieren'));
-      process.exit(1);
+  if (CONFIG.enableAI) {
+    const activeKey = CONFIG.aiProvider === 'claude' ? CONFIG.claudeApiKey : CONFIG.perplexityApiKey;
+    if (activeKey) {
+      const keyValidation = validateApiKey(activeKey);
+      if (!keyValidation.valid) {
+        console.error(chalk.red(`❌ Security: API-Key ungültig - ${keyValidation.error}`));
+        console.log(chalk.yellow('💡 Führe --setup aus, um API-Key neu zu konfigurieren'));
+        process.exit(1);
+      }
     }
   }
   

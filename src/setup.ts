@@ -44,13 +44,29 @@ export async function runSetupWizard(): Promise<void> {
     {
       type: 'confirm',
       name: 'enableAI',
-      message: '🤖 AI-Enhancement mit Perplexity aktivieren? (Empfohlen)',
+      message: '🤖 AI-Enhancement aktivieren? (Empfohlen)',
       initial: false
     },
     {
-      type: (prev) => prev ? 'password' : null,
+      type: (prev) => prev ? 'select' : null,
+      name: 'aiProvider',
+      message: 'Welchen AI-Provider möchtest du nutzen?',
+      choices: [
+        { title: 'Perplexity (sonar)', value: 'perplexity', description: 'Günstig, schnell, Web-Zugriff' },
+        { title: 'Claude (Anthropic)', value: 'claude', description: 'Hochwertige Analyse, kein Web-Zugriff' }
+      ],
+      initial: 0
+    },
+    {
+      type: (_prev: any, values: any) => values.enableAI && values.aiProvider === 'perplexity' ? 'password' : null,
       name: 'perplexityApiKey',
       message: 'Perplexity API-Key (von https://www.perplexity.ai/settings/api):',
+      validate: (value: string) => value.length >= 10 || 'API-Key zu kurz (min. 10 Zeichen)'
+    },
+    {
+      type: (_prev: any, values: any) => values.enableAI && values.aiProvider === 'claude' ? 'password' : null,
+      name: 'claudeApiKey',
+      message: 'Claude API-Key (von https://console.anthropic.com/settings/keys):',
       validate: (value: string) => value.length >= 10 || 'API-Key zu kurz (min. 10 Zeichen)'
     },
     {
@@ -97,7 +113,9 @@ export async function runSetupWizard(): Promise<void> {
     defaultMode: response.defaultMode,
     birthDate: response.birthDate?.trim() || undefined,
     enableAI: response.enableAI || false,
+    aiProvider: response.aiProvider || 'perplexity',
     perplexityApiKey: response.perplexityApiKey || undefined,
+    claudeApiKey: response.claudeApiKey || undefined,
     enableOCR: response.enableOCR,
     ocrLanguage: response.ocrLanguage || 'deu',
     silent: response.silent,
@@ -114,9 +132,14 @@ export async function runSetupWizard(): Promise<void> {
       console.log(chalk.cyan(`🔒 Geburtsdatum:          ${config.birthDate.substring(0, 3)}*******  (vertraulich)`));
     }
     console.log(chalk.bold(`🤖 AI-Enhancement:       ${config.enableAI ? 'Ja' : 'Nein'}`));
-    if (config.enableAI && config.perplexityApiKey) {
-      const maskedKey = config.perplexityApiKey.substring(0, 8) + '...' + config.perplexityApiKey.substring(config.perplexityApiKey.length - 4);
-      console.log(chalk.cyan(`  Perplexity API-Key:   ${maskedKey}`));
+    if (config.enableAI) {
+      const providerLabel = config.aiProvider === 'claude' ? 'Claude (Anthropic)' : 'Perplexity';
+      console.log(chalk.cyan(`  AI-Provider:          ${providerLabel}`));
+      const activeKey = config.aiProvider === 'claude' ? config.claudeApiKey : config.perplexityApiKey;
+      if (activeKey) {
+        const maskedKey = activeKey.substring(0, 8) + '...' + activeKey.substring(activeKey.length - 4);
+        console.log(chalk.cyan(`  API-Key:              ${maskedKey}`));
+      }
     }
     console.log(chalk.cyan(`\n📋 Deine Einstellungen:\n`));
     console.log(chalk.cyan(`  Standard-Modus:       ${config.defaultMode}`));
