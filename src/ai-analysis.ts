@@ -40,7 +40,7 @@ const PERPLEXITY_DEFAULT_MODEL = 'sonar';
 const PERPLEXITY_API_URL = 'https://api.perplexity.ai';
 
 // Claude defaults
-const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-6';
 const CLAUDE_API_URL = 'https://api.anthropic.com';
 const CLAUDE_API_VERSION = '2023-06-01';
 
